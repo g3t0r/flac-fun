@@ -1,0 +1,11 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "1.c"
+    ],
+    "directory": "/home/jan/Documents/hobby/flac-fun",
+    "file": "/home/jan/Documents/hobby/flac-fun/1.c"
+  }
+]
