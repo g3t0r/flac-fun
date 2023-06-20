@@ -3,9 +3,12 @@
     "arguments": [
       "/usr/bin/gcc",
       "-c",
-      "1.c"
+      "-o",
+      "build/ffun",
+      "src/main.c"
     ],
     "directory": "/home/jan/Documents/hobby/flac-fun",
-    "file": "/home/jan/Documents/hobby/flac-fun/1.c"
+    "file": "/home/jan/Documents/hobby/flac-fun/src/main.c",
+    "output": "/home/jan/Documents/hobby/flac-fun/build/ffun"
   }
 ]
