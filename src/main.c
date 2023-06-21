@@ -1,12 +1,24 @@
+#define __STDC_FORMAT_MACROS
+
 #include "arpa/inet.h"
+#include "bits.h"
 #include "flac.h"
 #include <inttypes.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int readBytesBigEndian(unsigned int *ptr, int n, FILE *fd);
+uint64_t bigEndianToLittleEndian(uint64_t bigEndian) {
+  uint64_t result = 0;
+  uint64_t mask = 7;
+  for(int i = 0; i < 8; i++) {
+    result += bigEndian & mask;
+    mask <<= 8;
+  }
+  return result;
+}
 
 int main(int argc, char **argv) {
   FILE *fd = fopen("audio/1.flac", "rb");
@@ -52,19 +64,21 @@ int main(int argc, char **argv) {
   r = readBytesBigEndian((unsigned int *)&maximumFrameSize, 3, fd);
   printf("R = %d\n", r);
   printf("MaximumFrameSize: %d\n", maximumFrameSize);
-}
 
-int readBytesBigEndian(unsigned int *ptr, int n, FILE *fd) {
-  uint32_t total = 0;
-  int r = 0;
-  for (int i = 0; i < n; i++) {
-    if (i != 0) {
-      total <<= 8;
-    }
-    int tmp = 0;
-    r += fread(&tmp, sizeof(uint8_t), 1, fd);
-    total += tmp;
-  }
-  *ptr = total;
-  return r;
+  uint64_t buff64 = 0;
+  r = readBytesBigEndian(&buff64, 8, fd);
+  uint64_t sampleRateMask = (uint64_t)((1 << 20) - 1) << (64 - 20);
+  uint64_t channelsMask = (uint64_t)7 << (64 - 20 - 3);
+  uint64_t bitsPerSampleMask = (uint64_t)31 << (64 - 20 - 3 - 5);
+  uint64_t totalSamplesInStreamMask = (uint64_t)((uint64_t)1<<36)-1;
+
+
+  uint32_t sampleRate = (buff64 & sampleRateMask) >> (64-20);
+  printf("Sample rate: %u\n", sampleRate);
+  int channels = (buff64 & channelsMask) >> (64 - 20 - 3);
+  printf("Channels: %u\n", channels);
+  int bitsPerSample = (buff64 & bitsPerSampleMask) >> (64 - 20 - 3 - 5);
+  printf("BitsPerSample: %u\n", bitsPerSample);
+  uint64_t totalSamplesInStream = (buff64 & totalSamplesInStreamMask);
+  printf("Total samples in stream: %"PRIu64"\n", totalSamplesInStream);
 }
