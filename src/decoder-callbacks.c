@@ -2,6 +2,7 @@
 #include <FLAC/format.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include "string.h"
 
 FLAC__StreamDecoderWriteStatus writeCallback(const FLAC__StreamDecoder *decoder,
                                              const FLAC__Frame *frame,
@@ -25,4 +26,15 @@ void metadataCallback(const FLAC__StreamDecoder *decoder,
         clientDataMetadata->blocks, clientDataMetadata->allocatedBlocks,
         sizeof(FLAC__StreamMetadata *));
   }
+
+
+  FLAC__StreamMetadata * copy = malloc(sizeof(FLAC__StreamMetadata));
+  memcpy(copy, metadata, sizeof(FLAC__StreamMetadata));
+
+  clientDataMetadata->blocks[clientDataMetadata->numberOfBlocks - (uint32_t)1] = copy;
+}
+
+void errorCallback(const FLAC__StreamDecoder *decoder,
+                   FLAC__StreamDecoderErrorStatus status, void *client_data) {
+  printf("Hello from error callback\n");
 }
