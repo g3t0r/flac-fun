@@ -4,12 +4,12 @@
 
 #include "FLAC/stream_decoder.h"
 #include "FLAC/stream_encoder.h"
+#include "decoder-callbacks.h"
+#include "encoder-callbacks.h"
 #include "inttypes.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
-#include "decoder-callbacks.h"
-#include "encoder-callbacks.h"
 
 int main(int argc, char **argv) {
   FILE *readFd = fopen("audio/1.flac", "rb");
@@ -28,19 +28,28 @@ int main(int argc, char **argv) {
   FLAC__StreamEncoderInitStatus initStatus =
       FLAC__stream_encoder_init_FILE(encoder, writeFD, progressCallback, NULL);
 
-  if(initStatus != 0) {
+  if (initStatus != 0) {
     printf("Incorrect encoder status %u\n", initStatus);
     exit(1);
   }
 
+  DecoderClientData *decoderClientData = calloc(1, sizeof(DecoderClientData));
+  decoderClientData->metadata.allocatedBlocks = 2;
+  decoderClientData->metadata.blocks = malloc(2 * sizeof(FLAC__StreamMetadata));
+
   FLAC__StreamDecoder *decoder = FLAC__stream_decoder_new();
   FLAC__StreamDecoderInitStatus status = FLAC__stream_decoder_init_FILE(
-      decoder, readFd, writeCallback, metadataCallback, errorCallback, NULL);
+      decoder, readFd, writeCallback, metadataCallback, errorCallback,
+      decoderClientData);
 
   FLAC__bool ok = FLAC__stream_decoder_process_until_end_of_metadata(decoder);
   if (!ok) {
     printf("Something wrong while reading metadata\n");
   }
 
+  printf("Metadata blocks: %u\n", decoderClientData->metadata.numberOfBlocks);
+  printf("Allocated blocks: %u\n", decoderClientData->metadata.allocatedBlocks);
 
+  FLAC__stream_encoder_set_metadata(encoder, decoderClientData->metadata.blocks,
+                                    decoderClientData->metadata.numberOfBlocks);
 }

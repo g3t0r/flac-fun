@@ -11,7 +11,7 @@ default: clean compile
 .PHONY: compile
 compile:
 	mkdir -p build
-	$(CC) -g src/main.c -lFLAC -o build/ffun
+	$(CC) -g src/*.c -lFLAC -o build/ffun
 
 .PHONY: clean
 clean:
