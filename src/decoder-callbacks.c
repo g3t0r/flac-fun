@@ -1,5 +1,7 @@
 #include "decoder-callbacks.h"
 #include <FLAC/format.h>
+#include <FLAC/stream_decoder.h>
+#include <FLAC/stream_encoder.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include "string.h"
@@ -8,7 +10,9 @@ FLAC__StreamDecoderWriteStatus writeCallback(const FLAC__StreamDecoder *decoder,
                                              const FLAC__Frame *frame,
                                              const FLAC__int32 *const buffer[],
                                              void *client_data) {
-  return 0;
+  DecoderClientData *decoderClientData = (DecoderClientData *) client_data;
+  FLAC__stream_encoder_process(decoderClientData->encoder, buffer, decoderClientData->totalSamples);
+  return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
 void metadataCallback(const FLAC__StreamDecoder *decoder,

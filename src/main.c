@@ -52,4 +52,8 @@ int main(int argc, char **argv) {
 
   FLAC__stream_encoder_set_metadata(encoder, decoderClientData->metadata.blocks,
                                     decoderClientData->metadata.numberOfBlocks);
+
+  decoderClientData->totalSamples = FLAC__stream_decoder_get_sample_rate(decoder);
+  FLAC__stream_decoder_process_until_end_of_stream(decoder);
+
 }
