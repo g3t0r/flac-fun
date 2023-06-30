@@ -5,13 +5,14 @@
 # @version 0.1
 
 CC := gcc
+LIBS := -lpthread
 
-default: clean compile
+default: clean server
 
-.PHONY: compile
-compile:
+.PHONY: server
+server:
 	mkdir -p build
-	$(CC) -g src/main.c -lFLAC -o build/ffun
+	$(CC) -g src/server.c $(LIBS) -o build/server
 
 .PHONY: clean
 clean:

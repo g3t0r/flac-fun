@@ -3,7 +3,7 @@
 The goal for this project is to create client-server program for streaming music.
 
 Server features:
-* TODO Implemented with ptheads
+* STRT Implemented with ptheads
 * TODO Creating library of songs from certain path
 * TODO Returning library to the client
 * TODO Sending song metadata to client
