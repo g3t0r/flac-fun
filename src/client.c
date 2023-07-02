@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 
   struct sockaddr_in clientAddrIn;
   clientAddrIn.sin_family = AF_INET;
-  clientAddrIn.sin_port = htons(FFUN_CLIENT_DEFAULT_PORT);
+  clientAddrIn.sin_port = 0;
   inet_pton(AF_INET, (const char *)&FFUN_CLIENT_DEFAULT_IP,
             &clientAddrIn.sin_addr.s_addr);
   clientAddrIn.sin_addr.s_addr = htonl(clientAddrIn.sin_addr.s_addr);
@@ -73,21 +73,20 @@ int main(int argc, char **argv) {
       sprintf((char *)&buffer, "Hello, I'm a client");
 
       int writeBytes = write(sd, buffer, strlen(buffer) + 1);
-
-      sleep(5);
     }
 
-    if(pollFileDescriptors[READ_FD].revents | POLLIN) {
-        int readBytes = read(sd, buffer, sizeof(buffer));
-        if(readBytes == -1) {
-            printf("Error reading from server\n");
-            exit(1);
-        } else if(readBytes == 0) {
-            printf("Server dropped connection\n");
-            exit(1);
-        }
+    if (pollFileDescriptors[READ_FD].revents | POLLIN) {
+      int readBytes = read(sd, buffer, sizeof(buffer));
+      if (readBytes == -1) {
+        printf("Error reading from server\n");
+        exit(1);
+      } else if (readBytes == 0) {
+        printf("Server dropped connection\n");
+        exit(1);
+      }
 
-        printf("Received message from server: %s\n", buffer);
+      printf("Received message from server: %s\n", buffer);
     }
+    sleep(1);
   }
 }
