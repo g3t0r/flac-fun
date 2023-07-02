@@ -50,6 +50,7 @@ void show(BitWriter *bitWriter) {
       printf(" ");
     }
     printf("%d", (bitWriter->buffer | mask) > 0 ? 1 : 0);
+
     mask >>= 1;
   }
   printf("\n");
