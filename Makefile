@@ -5,21 +5,24 @@
 # @version 0.1
 
 CC := gcc
-LIBS := -lpthread
+SERVER_LIBS := -lpthread
+CLIENT_LIBS :=
 
-default: clean server
+default: clean server client
 
 .PHONY: server
 server:
 	mkdir -p build
-	$(CC) -g src/server.c $(LIBS) -o build/server
+	$(CC) -g src/server.c $(SERVER_LIBS) -o build/server
+
+
+.PHONY: client
+client:
+	mkdir -p build
+	$(CC) -g src/client.c $(CLIENT_LIBS) -o build/client
 
 .PHONY: clean
 clean:
 	rm -rf ./build/
-
-.PHONY: run
-run:
-	./build/ffun
 
 # end
