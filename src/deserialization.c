@@ -8,6 +8,14 @@ struct {
   int readBitsCounter;
 } typedef BitReader;
 
+/* IDEA
+ * It may be an overkill
+ * Can store FLAC metadata just as char[],
+ * I's not necessary to read bit by bit on server side,
+ * I can load metadata using flac lib, or just create function that reads
+ * stream block
+ *
+ * Own BitReader/BitWriter is an overkill at this time*/
 
 uint32_t toHostByteOrderOrder(uint32_t networkByteOrderInt) {
   uint32_t fullByteMask = 255;
