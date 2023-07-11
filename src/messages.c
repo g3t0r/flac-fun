@@ -11,7 +11,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#define member_size(type, member) sizeof(((type *)0)->member)
+
 // for tests
+
 
 #ifndef TESTMESSAGES
 #else
@@ -33,12 +36,24 @@ int serializeMessage(int fd, const struct Message *message) {
   };
 }
 
-
 int deserializeMessage(int fd, struct Message **dst) {
   *dst = malloc(sizeof(struct Message));
+
   int readBytes = read(fd, &(*dst)->type, sizeof(MessageType_8b));
   if (readBytes == -1) {
     return -1;
+  }
+
+  readBytes = readIntegerFromFile(fd, &(*dst)->size, sizeof((*dst)->size));
+  if (readBytes == -1) {
+    return -1;
+  }
+
+
+  *dst = realloc(*dst, (*dst)->size * sizeof(char));
+  if(*dst == NULL) {
+    printf("Memory error: %s\n", strerror(errno));
+    exit(1);
   }
 
   switch ((enum MessageType)(*dst)->type) {
@@ -55,14 +70,18 @@ int deserializeMessage(int fd, struct Message **dst) {
 
 static int writeLoop(int fd, void *buffer, size_t bufferSize);
 
-
 static int
 serializeDoListAlbumsMessage(int fd,
                              const struct DoListAlbumsMessage *message) {
 
-  int total = sizeof(message->type);
+  int total = MESSAGE_DO_LIST_ALBUMS_SIZE;
   char *buffer = malloc(sizeof(char) * total);
-  writeIntegerToBuffer(buffer, &message->type, sizeof(message->type));
+  size_t inBuffer = 0;
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer, &message->type,
+                                  sizeof(message->type));
+
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer, &message->size,
+                                  sizeof(message->size));
   writeLoop(fd, buffer, total);
   free(buffer);
 
@@ -72,12 +91,16 @@ serializeDoListAlbumsMessage(int fd,
 static int serializeDoListSongsInAlbumMessage(
     int fd, const struct DoListSongsInAlbumsMessage *message) {
 
-  int total = sizeof(message->type) + sizeof(message->albumId);
+  uint32_t total = MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE;
   char *buffer = malloc(sizeof(char) * total);
   int inBuffer = 0;
 
   inBuffer += writeIntegerToBuffer(buffer + inBuffer, &message->type,
                                    sizeof(message->type));
+
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer, &total,
+                                   sizeof(uint32_t));
+
   inBuffer += writeIntegerToBuffer(buffer + inBuffer, &message->albumId,
                                    sizeof(message->albumId));
   writeLoop(fd, buffer, total);
@@ -88,21 +111,12 @@ static int serializeDoListSongsInAlbumMessage(
 
 static int deserializeDoListAlbumsMessage(int fd,
                                           struct DoListAlbumsMessage **dst) {
-  *dst = realloc(*dst, sizeof(struct DoListAlbumsMessage));
-  if (dst == 0) {
-    return -1;
-  }
   return 0;
 }
 
 static int
 deserializeDoListSongsInAlbumMessage(int fd,
                                      struct DoListSongsInAlbumsMessage **dst) {
-  *dst = realloc(*dst, sizeof(struct DoListSongsInAlbumsMessage));
-
-  if (*dst == 0) {
-    return -1;
-  }
 
   readIntegerFromFile(fd, &(*dst)->albumId, sizeof((*dst)->albumId));
 
@@ -123,11 +137,10 @@ static int writeIntegerToBuffer(void *buff, const void *integer, size_t size) {
   return size;
 }
 
-
-static int readLoop(int fd, void * buffer, size_t bufferSize) {
+static int readLoop(int fd, void *buffer, size_t bufferSize) {
   int bytesRead = 0;
-  while((read(fd, buffer + bytesRead, bufferSize - bytesRead)) != 0) {
-    if(bytesRead == -1) {
+  while ((bytesRead = read(fd, buffer + bytesRead, bufferSize - bytesRead)) != 0) {
+    if (bytesRead == -1) {
       return -1;
     }
   }
@@ -138,7 +151,7 @@ static int readIntegerFromFile(int fd, void *integer, size_t size) {
   int readBytes = 0;
   if (size == sizeof(uint8_t)) {
 
-     readBytes = read(fd, integer, size);
+    readBytes = read(fd, integer, size);
 
   } else if (size == sizeof(uint16_t)) {
 
@@ -147,16 +160,14 @@ static int readIntegerFromFile(int fd, void *integer, size_t size) {
     *(uint16_t *)integer = ntohs(networkByteOrder);
 
   } else {
-
     assert(sizeof(uint32_t) == size);
     uint32_t netwotkByteOrder;
     readLoop(fd, &netwotkByteOrder, size);
     *(uint32_t *)integer = ntohl(netwotkByteOrder);
-
+    int breakpointPlaceholder = 0;
   }
   return size;
 }
-
 
 static int writeLoop(int fd, void *buffer, size_t bufferSize) {
   int bytesWritten = 0;
@@ -177,32 +188,40 @@ static uint8_t toUint8(enum MessageType messageType) {
 #ifndef TESTMESSAGES
 #else
 
-static void test__DoListAlbumsMessage__SerializationDeseralization(int writeFd, int readFd) {
-  struct DoListAlbumsMessage message;
-  message.type = DO_LIST_ALBUMS;
+static void test__DoListAlbumsMessage__SerializationDeseralization(int writeFd,
+                                                                   int readFd) {
+  struct DoListAlbumsMessage toSerialize;
+  toSerialize.type = DO_LIST_ALBUMS;
+  toSerialize.size = MESSAGE_DO_LIST_ALBUMS_SIZE;
   struct DoListAlbumsMessage *deserialized;
 
-  serializeMessage(writeFd, (struct Message *)&message);
+  serializeMessage(writeFd, (struct Message *)&toSerialize);
   deserializeMessage(readFd, (struct Message **)&deserialized);
 
-  assert(message.type == deserialized->type);
+  assert(toSerialize.type == deserialized->type);
+  assert(toSerialize.size == deserialized->size);
 }
 
-static void test__DoListSongsInAlbumMessage__SerializationDeseralization(int writeFd, int readFd) {
+static void
+test__DoListSongsInAlbumMessage__SerializationDeseralization(int writeFd,
+                                                             int readFd) {
   struct DoListSongsInAlbumsMessage toSerialize;
   toSerialize.type = DO_LIST_SONGS_IN_ALBUM;
-  toSerialize.albumId = 212;
+  toSerialize.size = MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE;
+  toSerialize.albumId = 127;
   struct DoListSongsInAlbumsMessage *deserialized;
+
 
   serializeMessage(writeFd, (struct Message *)&toSerialize);
   deserializeMessage(readFd, (struct Message **)&deserialized);
 
   assert(toSerialize.type == deserialized->type);
   assert(toSerialize.albumId == deserialized->albumId);
+  assert(toSerialize.size == deserialized->size);
 }
 
-
 int main() {
+
 
   int writeFd = creat("build/serialized.bin", S_IWUSR | S_IRUSR);
   int readFd = open("build/serialized.bin", S_IRUSR);
@@ -210,8 +229,6 @@ int main() {
 
   test__DoListSongsInAlbumMessage__SerializationDeseralization(writeFd, readFd);
   test__DoListAlbumsMessage__SerializationDeseralization(writeFd, readFd);
-
-
 
   int forBreakpoint = 0;
 }

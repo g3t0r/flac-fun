@@ -1,6 +1,8 @@
 #ifndef FFUN_MESSAGES_H_
 #define FFUN_MESSAGES_H_
 
+#define memberSize(Type, member) (sizeof(((Type *)0)->member))
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -20,14 +22,17 @@ static uint8_t toUint8(enum MessageType messageType);
 
 struct Message {
   MessageType_8b type; // casted to uint8_t durring serialization
+  uint32_t size;
 };
 
 struct DoListAlbumsMessage {
   MessageType_8b type;
+  uint32_t size;
 };
 
 struct DoListSongsInAlbumsMessage {
   MessageType_8b type;
+  uint32_t size;
   uint16_t albumId;
 };
 
@@ -56,3 +61,11 @@ static int writeIntegerToBuffer(void *buff, const void *integer, size_t size);
 static int readIntegerFromFile(int fd, void *integer, size_t size);
 
 #endif // FFUN_MESSAGES_H_
+
+const int MESSAGE_HEADER_SIZE =
+    memberSize(struct Message, type) + memberSize(struct Message, size);
+
+const int MESSAGE_DO_LIST_ALBUMS_SIZE = MESSAGE_HEADER_SIZE;
+const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE =
+    MESSAGE_HEADER_SIZE +
+    memberSize(struct DoListSongsInAlbumsMessage, albumId);
