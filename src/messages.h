@@ -1,5 +1,5 @@
-#ifndef FFUN_MESSAGES_H_
-#define FFUN_MESSAGES_H_
+#ifndef _FFUN_MESSAGES_H_
+#define _FFUN_MESSAGES_H_
 
 #define memberSize(Type, member) (sizeof(((Type *)0)->member))
 
@@ -25,16 +25,37 @@ struct Message {
   uint32_t size;
 };
 
+extern const int MESSAGE_HEADER_SIZE;
 struct DoListAlbumsMessage {
   MessageType_8b type;
   uint32_t size;
 };
+
+extern const int MESSAGE_DO_LIST_ALBUMS_SIZE;
 
 struct DoListSongsInAlbumsMessage {
   MessageType_8b type;
   uint32_t size;
   uint16_t albumId;
 };
+
+extern const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE;
+
+struct AlbumListElement {
+  uint16_t albumId;
+  char *name;
+};
+
+uint32_t messageAlbumListElementGetSize(const struct AlbumListElement *message);
+
+struct AlbumsMessage {
+  MessageType_8b type;
+  uint32_t size;
+  uint32_t numberOfAlbums;
+  struct AlbumListElement *albumList;
+};
+
+uint32_t messageAlbumsGetSize(const struct AlbumsMessage *message);
 
 /* public functions */
 
@@ -60,12 +81,4 @@ static int writeIntegerToBuffer(void *buff, const void *integer, size_t size);
 
 static int readIntegerFromFile(int fd, void *integer, size_t size);
 
-#endif // FFUN_MESSAGES_H_
-
-const int MESSAGE_HEADER_SIZE =
-    memberSize(struct Message, type) + memberSize(struct Message, size);
-
-const int MESSAGE_DO_LIST_ALBUMS_SIZE = MESSAGE_HEADER_SIZE;
-const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE =
-    MESSAGE_HEADER_SIZE +
-    memberSize(struct DoListSongsInAlbumsMessage, albumId);
+#endif // _FFUN_MESSAGES_H_

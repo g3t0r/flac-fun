@@ -11,17 +11,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define member_size(type, member) sizeof(((type *)0)->member)
-
-// for tests
-
-
-#ifndef TESTMESSAGES
-#else
-#include <fcntl.h>
-#include <sys/stat.h>
-#endif
-
 int serializeMessage(int fd, const struct Message *message) {
   switch (message->type) {
   case DO_LIST_ALBUMS: {
@@ -185,52 +174,31 @@ static uint8_t toUint8(enum MessageType messageType) {
   return (uint8_t)messageType;
 }
 
-#ifndef TESTMESSAGES
-#else
 
-static void test__DoListAlbumsMessage__SerializationDeseralization(int writeFd,
-                                                                   int readFd) {
-  struct DoListAlbumsMessage toSerialize;
-  toSerialize.type = DO_LIST_ALBUMS;
-  toSerialize.size = MESSAGE_DO_LIST_ALBUMS_SIZE;
-  struct DoListAlbumsMessage *deserialized;
-
-  serializeMessage(writeFd, (struct Message *)&toSerialize);
-  deserializeMessage(readFd, (struct Message **)&deserialized);
-
-  assert(toSerialize.type == deserialized->type);
-  assert(toSerialize.size == deserialized->size);
+uint32_t messageAlbumsGetSize(const struct AlbumsMessage * message) {
+  int size = MESSAGE_HEADER_SIZE;
+  size += sizeof(message->numberOfAlbums);
+  for(int i = 0; i < message->numberOfAlbums; i++) {
+    size += messageAlbumListElementGetSize(message->albumList + i);
+  }
+  return size;
 }
 
-static void
-test__DoListSongsInAlbumMessage__SerializationDeseralization(int writeFd,
-                                                             int readFd) {
-  struct DoListSongsInAlbumsMessage toSerialize;
-  toSerialize.type = DO_LIST_SONGS_IN_ALBUM;
-  toSerialize.size = MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE;
-  toSerialize.albumId = 127;
-  struct DoListSongsInAlbumsMessage *deserialized;
 
-
-  serializeMessage(writeFd, (struct Message *)&toSerialize);
-  deserializeMessage(readFd, (struct Message **)&deserialized);
-
-  assert(toSerialize.type == deserialized->type);
-  assert(toSerialize.albumId == deserialized->albumId);
-  assert(toSerialize.size == deserialized->size);
+uint32_t messageAlbumListElementGetSize(const struct AlbumListElement * message) {
+  return sizeof(message->albumId) + strlen(message->name) + 1;
 }
 
-int main() {
+
+/* variables */
 
 
-  int writeFd = creat("build/serialized.bin", S_IWUSR | S_IRUSR);
-  int readFd = open("build/serialized.bin", S_IRUSR);
+const int MESSAGE_HEADER_SIZE =
+    memberSize(struct Message, type) + memberSize(struct Message, size);
+
+const int MESSAGE_DO_LIST_ALBUMS_SIZE = MESSAGE_HEADER_SIZE;
 
 
-  test__DoListSongsInAlbumMessage__SerializationDeseralization(writeFd, readFd);
-  test__DoListAlbumsMessage__SerializationDeseralization(writeFd, readFd);
-
-  int forBreakpoint = 0;
-}
-
-#endif
+const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE =
+    MESSAGE_HEADER_SIZE +
+    memberSize(struct DoListSongsInAlbumsMessage, albumId);
