@@ -6,7 +6,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* models and types */
+/* =================== custom types ==================== */
+
+typedef uint8_t MessageType_8b;
+typedef uint32_t MessageSize;
+typedef uint16_t AlbumId;
 
 enum MessageType {
   HEARTBEAT = 0,
@@ -16,53 +20,55 @@ enum MessageType {
   SONGS_IN_ALBUM
 };
 
-typedef uint8_t MessageType_8b;
-
-static uint8_t toUint8(enum MessageType messageType);
+/* ==================== structs ==================== */
 
 struct Message {
-  MessageType_8b type; // casted to uint8_t durring serialization
-  uint32_t size;
+  MessageType_8b type;
+  MessageSize size;
 };
 
-extern const int MESSAGE_HEADER_SIZE;
 struct DoListAlbumsMessage {
   MessageType_8b type;
-  uint32_t size;
+  MessageSize size;
 };
-
-extern const int MESSAGE_DO_LIST_ALBUMS_SIZE;
 
 struct DoListSongsInAlbumsMessage {
   MessageType_8b type;
-  uint32_t size;
-  uint16_t albumId;
+  MessageSize size;
+  AlbumId albumId;
 };
-
-extern const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE;
 
 struct AlbumListElement {
   uint16_t albumId;
   char *name;
 };
 
-uint32_t messageAlbumListElementGetSize(const struct AlbumListElement *message);
-
 struct AlbumsMessage {
   MessageType_8b type;
-  uint32_t size;
+  MessageSize size;
   uint32_t numberOfAlbums;
   struct AlbumListElement *albumList;
 };
 
-uint32_t messageAlbumsGetSize(const struct AlbumsMessage *message);
+/* =================== message sizes ==================== */
 
-/* public functions */
+extern const int MESSAGE_HEADER_SIZE;
+
+extern const int MESSAGE_DO_LIST_ALBUMS_SIZE;
+
+extern const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE;
+
+/* =================== public functions ==================== */
 
 int deserializeMessage(int fd, struct Message **dst);
 int serializeMessage(int fd, const struct Message *message);
 
-/* private methods */
+/* =================== private functions ==================== */
+
+static uint32_t
+messageAlbumListElementGetSize(const struct AlbumListElement *message);
+
+static uint32_t messageAlbumsGetSize(const struct AlbumsMessage *message);
 
 static int
 serializeDoListAlbumsMessage(int fd, const struct DoListAlbumsMessage *message);
@@ -80,5 +86,7 @@ deserializeDoListSongsInAlbumMessage(int fd,
 static int writeIntegerToBuffer(void *buff, const void *integer, size_t size);
 
 static int readIntegerFromFile(int fd, void *integer, size_t size);
+
+static uint8_t toUint8(enum MessageType messageType);
 
 #endif // _FFUN_MESSAGES_H_
