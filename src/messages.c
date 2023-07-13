@@ -11,6 +11,19 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+/* =================== message sizes ==================== */
+
+const int MESSAGE_HEADER_SIZE =
+    memberSize(struct Message, type) + memberSize(struct Message, size);
+
+const int MESSAGE_DO_LIST_ALBUMS_SIZE = MESSAGE_HEADER_SIZE;
+
+const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE =
+    MESSAGE_HEADER_SIZE +
+    memberSize(struct DoListSongsInAlbumsMessage, albumId);
+
+/* =================== public functions ==================== */
+
 int serializeMessage(int fd, const struct Message *message) {
   switch (message->type) {
   case DO_LIST_ALBUMS: {
@@ -38,9 +51,8 @@ int deserializeMessage(int fd, struct Message **dst) {
     return -1;
   }
 
-
   *dst = realloc(*dst, (*dst)->size * sizeof(char));
-  if(*dst == NULL) {
+  if (*dst == NULL) {
     printf("Memory error: %s\n", strerror(errno));
     exit(1);
   }
@@ -57,8 +69,25 @@ int deserializeMessage(int fd, struct Message **dst) {
   }
 }
 
-static int writeLoop(int fd, void *buffer, size_t bufferSize);
+/* =================== private functions ==================== */
 
+/* ============ message size calculation functions ============= */
+
+uint32_t messageAlbumsGetSize(const struct AlbumsMessage *message) {
+  int size = MESSAGE_HEADER_SIZE;
+  size += sizeof(message->numberOfAlbums);
+  for (int i = 0; i < message->numberOfAlbums; i++) {
+    size += messageAlbumListElementGetSize(message->albumList + i);
+  }
+  return size;
+}
+
+uint32_t
+messageAlbumListElementGetSize(const struct AlbumListElement *message) {
+  return sizeof(message->albumId) + strlen(message->name) + 1;
+}
+
+/* =================== serialization functions ==================== */
 static int
 serializeDoListAlbumsMessage(int fd,
                              const struct DoListAlbumsMessage *message) {
@@ -67,10 +96,10 @@ serializeDoListAlbumsMessage(int fd,
   char *buffer = malloc(sizeof(char) * total);
   size_t inBuffer = 0;
   inBuffer += writeIntegerToBuffer(buffer + inBuffer, &message->type,
-                                  sizeof(message->type));
+                                   sizeof(message->type));
 
   inBuffer += writeIntegerToBuffer(buffer + inBuffer, &message->size,
-                                  sizeof(message->size));
+                                   sizeof(message->size));
   writeLoop(fd, buffer, total);
   free(buffer);
 
@@ -87,8 +116,7 @@ static int serializeDoListSongsInAlbumMessage(
   inBuffer += writeIntegerToBuffer(buffer + inBuffer, &message->type,
                                    sizeof(message->type));
 
-  inBuffer += writeIntegerToBuffer(buffer + inBuffer, &total,
-                                   sizeof(uint32_t));
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer, &total, sizeof(uint32_t));
 
   inBuffer += writeIntegerToBuffer(buffer + inBuffer, &message->albumId,
                                    sizeof(message->albumId));
@@ -97,6 +125,8 @@ static int serializeDoListSongsInAlbumMessage(
 
   return 0;
 }
+
+/* =================== deserialization functions ==================== */
 
 static int deserializeDoListAlbumsMessage(int fd,
                                           struct DoListAlbumsMessage **dst) {
@@ -126,9 +156,12 @@ static int writeIntegerToBuffer(void *buff, const void *integer, size_t size) {
   return size;
 }
 
+/* =================== read functions ==================== */
+
 static int readLoop(int fd, void *buffer, size_t bufferSize) {
   int bytesRead = 0;
-  while ((bytesRead = read(fd, buffer + bytesRead, bufferSize - bytesRead)) != 0) {
+  while ((bytesRead = read(fd, buffer + bytesRead, bufferSize - bytesRead)) !=
+         0) {
     if (bytesRead == -1) {
       return -1;
     }
@@ -158,6 +191,8 @@ static int readIntegerFromFile(int fd, void *integer, size_t size) {
   return size;
 }
 
+/* =================== write functions ==================== */
+
 static int writeLoop(int fd, void *buffer, size_t bufferSize) {
   int bytesWritten = 0;
   while ((bytesWritten = write(fd, buffer + bytesWritten,
@@ -169,36 +204,3 @@ static int writeLoop(int fd, void *buffer, size_t bufferSize) {
   }
   return 0;
 }
-
-static uint8_t toUint8(enum MessageType messageType) {
-  return (uint8_t)messageType;
-}
-
-
-uint32_t messageAlbumsGetSize(const struct AlbumsMessage * message) {
-  int size = MESSAGE_HEADER_SIZE;
-  size += sizeof(message->numberOfAlbums);
-  for(int i = 0; i < message->numberOfAlbums; i++) {
-    size += messageAlbumListElementGetSize(message->albumList + i);
-  }
-  return size;
-}
-
-
-uint32_t messageAlbumListElementGetSize(const struct AlbumListElement * message) {
-  return sizeof(message->albumId) + strlen(message->name) + 1;
-}
-
-
-/* variables */
-
-
-const int MESSAGE_HEADER_SIZE =
-    memberSize(struct Message, type) + memberSize(struct Message, size);
-
-const int MESSAGE_DO_LIST_ALBUMS_SIZE = MESSAGE_HEADER_SIZE;
-
-
-const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE =
-    MESSAGE_HEADER_SIZE +
-    memberSize(struct DoListSongsInAlbumsMessage, albumId);

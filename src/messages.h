@@ -87,6 +87,6 @@ static int writeIntegerToBuffer(void *buff, const void *integer, size_t size);
 
 static int readIntegerFromFile(int fd, void *integer, size_t size);
 
-static uint8_t toUint8(enum MessageType messageType);
+static int writeLoop(int fd, void *buffer, size_t bufferSize);
 
 #endif // _FFUN_MESSAGES_H_
