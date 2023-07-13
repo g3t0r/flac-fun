@@ -1,9 +1,11 @@
 #include "../messages.h"
 
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <assert.h>
+#include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
 
 static void test__DoListAlbumsMessage__SerializationDeseralization(int writeFd,
                                                                    int readFd) {
@@ -36,6 +38,26 @@ test__DoListSongsInAlbumMessage__SerializationDeseralization(int writeFd,
   assert(toSerialize.size == deserialized->size);
 }
 
+static void test__AlbumsMessageGetSize() {
+  struct AlbumListElement albumsList[2] = {
+      {111, "Author 1 - Album Name 1"},
+      {222, "Author 2 - Album Name 2"},
+  };
+
+  uint32_t albumsListSize = 2 * memberSize(struct AlbumListElement, albumId) +
+                            strlen(albumsList[0].name) + 1 +
+                            strlen(albumsList[1].name) + 1;
+
+  struct AlbumsMessage albumsMessage = {ALBUMS, 0, 2, albumsList};
+
+  uint32_t albumsMessageSize =
+      memberSize(struct AlbumsMessage, type) +
+      memberSize(struct AlbumsMessage, size) +
+      memberSize(struct AlbumsMessage, numberOfAlbums) + albumsListSize;
+
+  assert(albumsMessageSize == messageAlbumsGetSize(&albumsMessage));
+}
+
 int main() {
 
   int writeFd = creat("build/serialized.bin", S_IWUSR | S_IRUSR);
@@ -43,6 +65,7 @@ int main() {
 
   test__DoListSongsInAlbumMessage__SerializationDeseralization(writeFd, readFd);
   test__DoListAlbumsMessage__SerializationDeseralization(writeFd, readFd);
+  test__AlbumsMessageGetSize();
   printf("Messages: all test passed\n");
 
   int forBreakpoint = 0;
