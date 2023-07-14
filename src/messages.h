@@ -11,6 +11,7 @@
 typedef uint8_t MessageType_8b;
 typedef uint32_t MessageSize;
 typedef uint16_t AlbumId;
+typedef uint8_t SongId;
 
 enum MessageType {
   HEARTBEAT = 0,
@@ -48,6 +49,19 @@ struct AlbumsMessage {
   MessageSize size;
   uint32_t numberOfAlbums;
   struct AlbumListElement *albumList;
+};
+
+struct SongListElement {
+  SongId songId;
+  char * name;
+  uint16_t lengthInSeconds;
+};
+
+struct SongsInAlbumMessage {
+  MessageType_8b type;
+  MessageSize size;
+  uint8_t numberOfSongs;
+  struct SongListElement * songList;
 };
 
 /* =================== message sizes ==================== */
