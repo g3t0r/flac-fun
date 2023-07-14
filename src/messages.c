@@ -11,6 +11,44 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+/* =================== static function declarations ==================== */
+
+static MessageSize
+messageAlbumListElementGetSize(const struct AlbumListElement *message);
+
+static MessageSize
+messageSongAudioDataGetSize(const struct SongAudioDataMessage *message);
+
+static MessageSize
+messageSongsListElementGetSize(const struct SongListElement *song);
+
+static int
+serializeDoListAlbumsMessage(int fd, const struct DoListAlbumsMessage *message);
+
+static int serializeDoListSongsInAlbumMessage(
+    int fd, const struct DoListSongsInAlbumsMessage *message);
+
+static int
+serializeDoListAlbumsMessage(int fd, const struct DoListAlbumsMessage *message);
+
+static int serializeDoListSongsInAlbumMessage(
+    int fd, const struct DoListSongsInAlbumsMessage *message);
+
+static int deserializeDoListAlbumsMessage(int fd,
+                                          struct DoListAlbumsMessage **dst);
+
+static int
+deserializeDoListSongsInAlbumMessage(int fd,
+                                     struct DoListSongsInAlbumsMessage **dst);
+
+static int writeIntegerToBuffer(void *buff, const void *integer, size_t size);
+
+static int writeLoop(int fd, void *buffer, size_t bufferSize);
+
+static int readIntegerFromFile(int fd, void *integer, size_t size);
+
+/* ===================| definitions |==================== */
+
 /* =================== message sizes ==================== */
 
 const int MESSAGE_HEADER_SIZE =
@@ -24,6 +62,7 @@ const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE =
 
 /* =================== public functions ==================== */
 
+/* =================== serialization ==================== */
 int serializeMessage(int fd, const struct Message *message) {
   switch (message->type) {
   case DO_LIST_ALBUMS: {
@@ -38,6 +77,7 @@ int serializeMessage(int fd, const struct Message *message) {
   };
 }
 
+/* =================== derialization ==================== */
 int deserializeMessage(int fd, struct Message **dst) {
   *dst = malloc(sizeof(struct Message));
 
@@ -69,11 +109,9 @@ int deserializeMessage(int fd, struct Message **dst) {
   }
 }
 
-/* =================== private functions ==================== */
+/* =================== message size calculation ==================== */
 
-/* ============ message size calculation functions ============= */
-
-uint32_t messageAlbumsGetSize(const struct AlbumsMessage *message) {
+MessageSize messageAlbumsGetSize(const struct AlbumsMessage *message) {
   int size = MESSAGE_HEADER_SIZE;
   size += sizeof(message->numberOfAlbums);
   for (int i = 0; i < message->numberOfAlbums; i++) {
@@ -82,9 +120,41 @@ uint32_t messageAlbumsGetSize(const struct AlbumsMessage *message) {
   return size;
 }
 
-uint32_t
+MessageSize
+messageSongMetadataGetSize(const struct SongMetadataMessage *message) {
+  return MESSAGE_HEADER_SIZE + sizeof(message->bytesSize) +
+    message->bytesSize * sizeof(char);
+}
+
+MessageSize
+messageSongAudioDataGetSize(const struct SongAudioDataMessage *message) {
+  return MESSAGE_HEADER_SIZE + sizeof(message->bytesSize) +
+    message->bytesSize * sizeof(char);
+}
+
+MessageSize messageSongsInAlbumSize(const struct SongsInAlbumMessage *message) {
+  int size = MESSAGE_HEADER_SIZE;
+  size += sizeof(message->numberOfSongs);
+  for(int i = 0; i < message->numberOfSongs; i++) {
+    size += messageSongsListElementGetSize(message->songList + i);
+  }
+  return size;
+}
+
+/* =================== private functions ==================== */
+
+/* ============ message size calculation functions ============= */
+
+static MessageSize
 messageAlbumListElementGetSize(const struct AlbumListElement *message) {
   return sizeof(message->albumId) + strlen(message->name) + 1;
+}
+
+
+static MessageSize
+messageSongsListElementGetSize(const struct SongListElement *song) {
+  return sizeof(song->songId) + sizeof(song->lengthInSeconds) +
+         strlen(song->name) + 1;
 }
 
 /* =================== serialization functions ==================== */

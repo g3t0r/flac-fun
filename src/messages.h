@@ -18,7 +18,13 @@ enum MessageType {
   DO_LIST_ALBUMS,
   DO_LIST_SONGS_IN_ALBUM,
   ALBUMS,
-  SONGS_IN_ALBUM
+  SONGS_IN_ALBUM,
+  DO_START_STREAM,
+  DO_PAUSE_STREAM,
+  DO_RESUME_STREAM,
+  SONG_METADATA,
+  SONG_AUDIO_DATA,
+  READY_FOR_AUDIO
 };
 
 /* ==================== structs ==================== */
@@ -53,7 +59,7 @@ struct AlbumsMessage {
 
 struct SongListElement {
   SongId songId;
-  char * name;
+  char *name;
   uint16_t lengthInSeconds;
 };
 
@@ -61,7 +67,37 @@ struct SongsInAlbumMessage {
   MessageType_8b type;
   MessageSize size;
   uint8_t numberOfSongs;
-  struct SongListElement * songList;
+  struct SongListElement *songList;
+};
+
+struct DoStartStreamMessage {
+  MessageType_8b type;
+  MessageSize size;
+  SongId songId;
+};
+
+struct DoPauseStreamMessage {
+  MessageType_8b type;
+  MessageSize size;
+};
+
+struct DoResumeStreamMessage {
+  MessageType_8b type;
+  MessageSize size;
+};
+
+struct SongMetadataMessage {
+  MessageType_8b type;
+  MessageSize size;
+  uint32_t bytesSize;
+  char *bytes;
+};
+
+struct SongAudioDataMessage {
+  MessageType_8b type;
+  MessageSize size;
+  uint32_t bytesSize;
+  char *bytes;
 };
 
 /* =================== message sizes ==================== */
@@ -72,35 +108,24 @@ extern const int MESSAGE_DO_LIST_ALBUMS_SIZE;
 
 extern const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE;
 
-/* =================== public functions ==================== */
+extern const int MESSAGE_DO_START_STREAM_SIZE;
+
+extern const int MESSAGE_DO_RESUME_STREAM_SIZE;
+
+/* =================== deserialization functions ==================== */
 
 int deserializeMessage(int fd, struct Message **dst);
+
+/* =================== serialization functions ==================== */
 int serializeMessage(int fd, const struct Message *message);
 
-/* =================== private functions ==================== */
+/* =============== size calculation functions================= */
 
-static uint32_t
-messageAlbumListElementGetSize(const struct AlbumListElement *message);
+MessageSize messageAlbumsGetSize(const struct AlbumsMessage *message);
 
-static uint32_t messageAlbumsGetSize(const struct AlbumsMessage *message);
+MessageSize messageSongsInAlbumSize(const struct SongsInAlbumMessage *message);
 
-static int
-serializeDoListAlbumsMessage(int fd, const struct DoListAlbumsMessage *message);
-
-static int serializeDoListSongsInAlbumMessage(
-    int fd, const struct DoListSongsInAlbumsMessage *message);
-
-static int deserializeDoListAlbumsMessage(int fd,
-                                          struct DoListAlbumsMessage **dst);
-
-static int
-deserializeDoListSongsInAlbumMessage(int fd,
-                                     struct DoListSongsInAlbumsMessage **dst);
-
-static int writeIntegerToBuffer(void *buff, const void *integer, size_t size);
-
-static int readIntegerFromFile(int fd, void *integer, size_t size);
-
-static int writeLoop(int fd, void *buffer, size_t bufferSize);
+MessageSize
+messageSongMetadataGetSize(const struct SongMetadataMessage *message);
 
 #endif // _FFUN_MESSAGES_H_
