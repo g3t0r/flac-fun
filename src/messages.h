@@ -128,4 +128,7 @@ MessageSize messageSongsInAlbumSize(const struct SongsInAlbumMessage *message);
 MessageSize
 messageSongMetadataGetSize(const struct SongMetadataMessage *message);
 
+MessageSize
+messageSongAudioDataGetSize(const struct SongAudioDataMessage *message);
+
 #endif // _FFUN_MESSAGES_H_

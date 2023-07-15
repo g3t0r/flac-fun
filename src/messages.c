@@ -17,9 +17,6 @@ static MessageSize
 messageAlbumListElementGetSize(const struct AlbumListElement *message);
 
 static MessageSize
-messageSongAudioDataGetSize(const struct SongAudioDataMessage *message);
-
-static MessageSize
 messageSongsListElementGetSize(const struct SongListElement *song);
 
 static int
@@ -123,19 +120,19 @@ MessageSize messageAlbumsGetSize(const struct AlbumsMessage *message) {
 MessageSize
 messageSongMetadataGetSize(const struct SongMetadataMessage *message) {
   return MESSAGE_HEADER_SIZE + sizeof(message->bytesSize) +
-    message->bytesSize * sizeof(char);
+         message->bytesSize * sizeof(char);
 }
 
 MessageSize
 messageSongAudioDataGetSize(const struct SongAudioDataMessage *message) {
   return MESSAGE_HEADER_SIZE + sizeof(message->bytesSize) +
-    message->bytesSize * sizeof(char);
+         message->bytesSize * sizeof(char);
 }
 
 MessageSize messageSongsInAlbumSize(const struct SongsInAlbumMessage *message) {
   int size = MESSAGE_HEADER_SIZE;
   size += sizeof(message->numberOfSongs);
-  for(int i = 0; i < message->numberOfSongs; i++) {
+  for (int i = 0; i < message->numberOfSongs; i++) {
     size += messageSongsListElementGetSize(message->songList + i);
   }
   return size;
@@ -149,7 +146,6 @@ static MessageSize
 messageAlbumListElementGetSize(const struct AlbumListElement *message) {
   return sizeof(message->albumId) + strlen(message->name) + 1;
 }
-
 
 static MessageSize
 messageSongsListElementGetSize(const struct SongListElement *song) {
