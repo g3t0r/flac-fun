@@ -31,6 +31,8 @@ serializeDoListAlbumsMessage(int fd, const struct DoListAlbumsMessage *message);
 static int serializeDoListSongsInAlbumMessage(
     int fd, const struct DoListSongsInAlbumsMessage *message);
 
+static int serializeAlbumsMessage(int fd, const struct AlbumsMessage *message);
+
 static int deserializeDoListAlbumsMessage(int fd,
                                           struct DoListAlbumsMessage **dst);
 
@@ -39,6 +41,8 @@ deserializeDoListSongsInAlbumMessage(int fd,
                                      struct DoListSongsInAlbumsMessage **dst);
 
 static int writeIntegerToBuffer(void *buff, const void *integer, size_t size);
+
+static int writeStringToBuffer(void *buff, const char * string);
 
 static int writeLoop(int fd, void *buffer, size_t bufferSize);
 
@@ -62,13 +66,14 @@ const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE =
 /* =================== serialization ==================== */
 int serializeMessage(int fd, const struct Message *message) {
   switch (message->type) {
-  case DO_LIST_ALBUMS: {
+  case DO_LIST_ALBUMS:
     return serializeDoListAlbumsMessage(fd,
                                         (struct DoListAlbumsMessage *)message);
   case DO_LIST_SONGS_IN_ALBUM:
     return serializeDoListSongsInAlbumMessage(
         fd, (struct DoListSongsInAlbumsMessage *)message);
-  }
+  case ALBUMS:
+    return 0;
   default:
     return -1;
   };
@@ -192,6 +197,37 @@ static int serializeDoListSongsInAlbumMessage(
   return 0;
 }
 
+static int serializeAlbumsMessage(int fd, const struct AlbumsMessage *message) {
+
+  MessageSize total = messageAlbumsGetSize(message);
+  char *buffer = malloc(sizeof(char) * total);
+  MessageSize inBuffer = 0;
+
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer,      //
+                                   &message->type,         //
+                                   sizeof(message->type)); //
+
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer,    //
+                                   &total,               //
+                                   sizeof(MessageSize)); //
+
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer,                //
+                                   &message->numberOfAlbums,         //
+                                   sizeof(message->numberOfAlbums)); //
+
+  for (uint32_t i = 0; i < message->numberOfAlbums; i++) {
+    struct AlbumListElement *album = message->albumList + i;
+
+    inBuffer += writeIntegerToBuffer(buffer + inBuffer, //
+                                     &album->albumId,   //
+                                     sizeof(AlbumId));  //
+
+    inBuffer += writeStringToBuffer(buffer + inBuffer, album->name);
+  }
+
+  return 0;
+}
+
 /* =================== deserialization functions ==================== */
 
 static int deserializeDoListAlbumsMessage(int fd,
@@ -258,6 +294,12 @@ static int readIntegerFromFile(int fd, void *integer, size_t size) {
 }
 
 /* =================== write functions ==================== */
+
+static int writeStringToBuffer(void *buff, const char * string) {
+  size_t length = strlen(string) + 1;
+  memcpy(buff, string, length);
+  return length;
+}
 
 static int writeLoop(int fd, void *buffer, size_t bufferSize) {
   int bytesWritten = 0;
