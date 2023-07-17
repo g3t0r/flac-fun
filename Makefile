@@ -9,13 +9,14 @@ SERVER_LIBS := -lpthread
 CLIENT_LIBS :=
 SHARED_SOURCES := src/messages.c
 LINKED_OBJECTS := build/messages.o
-OPTS := -g -Wall
+OPTS := -g
 
 default: clean server client
 
 
 .PHONY: messages-test
 messages-test:
+	mkdir -p build
 	$(CC) $(OPTS) src/tests/messages-test.c src/messages.c -o build/messages.test
 	build/messages.test
 
