@@ -40,13 +40,17 @@ static int
 deserializeDoListSongsInAlbumMessage(int fd,
                                      struct DoListSongsInAlbumsMessage **dst);
 
+static int deserializeAlbumsMessage(int fd, struct AlbumsMessage **dst);
+
 static int writeIntegerToBuffer(void *buff, const void *integer, size_t size);
 
-static int writeStringToBuffer(void *buff, const char * string);
+static int writeStringToBuffer(void *buff, const char *string);
 
 static int writeLoop(int fd, void *buffer, size_t bufferSize);
 
 static int readIntegerFromFile(int fd, void *integer, size_t size);
+
+static int readStringFromFile(int fd, char **string, uint8_t length);
 
 /* ===================| definitions |==================== */
 
@@ -73,7 +77,7 @@ int serializeMessage(int fd, const struct Message *message) {
     return serializeDoListSongsInAlbumMessage(
         fd, (struct DoListSongsInAlbumsMessage *)message);
   case ALBUMS:
-    return 0;
+    return serializeAlbumsMessage(fd, (struct AlbumsMessage *)message);
   default:
     return -1;
   };
@@ -93,12 +97,6 @@ int deserializeMessage(int fd, struct Message **dst) {
     return -1;
   }
 
-  *dst = realloc(*dst, (*dst)->size * sizeof(char));
-  if (*dst == NULL) {
-    printf("Memory error: %s\n", strerror(errno));
-    exit(1);
-  }
-
   switch ((enum MessageType)(*dst)->type) {
   case DO_LIST_ALBUMS:
     return deserializeDoListAlbumsMessage(fd,
@@ -106,6 +104,8 @@ int deserializeMessage(int fd, struct Message **dst) {
   case DO_LIST_SONGS_IN_ALBUM:
     return deserializeDoListSongsInAlbumMessage(
         fd, (struct DoListSongsInAlbumsMessage **)dst);
+  case ALBUMS:
+    return deserializeAlbumsMessage(fd, (struct AlbumsMessage **)dst);
   default:
     return -1;
   }
@@ -149,7 +149,9 @@ MessageSize messageSongsInAlbumSize(const struct SongsInAlbumMessage *message) {
 
 static MessageSize
 messageAlbumListElementGetSize(const struct AlbumListElement *message) {
-  return sizeof(message->albumId) + strlen(message->name) + 1;
+  return sizeof(message->albumId) +          //
+         sizeof(message->nameLength) +       //
+         sizeof(char) * message->nameLength; //
 }
 
 static MessageSize
@@ -222,8 +224,14 @@ static int serializeAlbumsMessage(int fd, const struct AlbumsMessage *message) {
                                      &album->albumId,   //
                                      sizeof(AlbumId));  //
 
+    inBuffer += writeIntegerToBuffer(buffer + inBuffer,          //
+                                     &album->nameLength,         //
+                                     sizeof(album->nameLength)); //
+
     inBuffer += writeStringToBuffer(buffer + inBuffer, album->name);
   }
+
+  writeLoop(fd, buffer, total);
 
   return 0;
 }
@@ -240,6 +248,29 @@ deserializeDoListSongsInAlbumMessage(int fd,
                                      struct DoListSongsInAlbumsMessage **dst) {
 
   readIntegerFromFile(fd, &(*dst)->albumId, sizeof((*dst)->albumId));
+
+  return 0;
+}
+
+static int deserializeAlbumsMessage(int fd, struct AlbumsMessage **dst) {
+  int staticSize = sizeof(struct AlbumsMessage);
+  *dst = realloc(*dst, (*dst)->size * sizeof(staticSize));
+  if (*dst == NULL) {
+    printf("Memory error: %s\n", strerror(errno));
+    exit(1);
+  }
+
+  readIntegerFromFile(fd, &(*dst)->numberOfAlbums,
+                      sizeof((*dst)->numberOfAlbums));
+  (*dst)->albumList =
+      malloc((*dst)->numberOfAlbums * sizeof(struct AlbumListElement));
+
+  for (size_t i = 0; i < (*dst)->numberOfAlbums; i++) {
+    struct AlbumListElement *element = (*dst)->albumList + i;
+    readIntegerFromFile(fd, &element->albumId, sizeof(element->albumId));
+    readIntegerFromFile(fd, &element->nameLength, sizeof(element->nameLength));
+    readStringFromFile(fd, &element->name, element->nameLength);
+  }
 
   return 0;
 }
@@ -293,9 +324,15 @@ static int readIntegerFromFile(int fd, void *integer, size_t size) {
   return size;
 }
 
+static int readStringFromFile(int fd, char **string, uint8_t length) {
+  *string = malloc(sizeof(char) * length);
+  readLoop(fd, *string, length);
+  return 0;
+}
+
 /* =================== write functions ==================== */
 
-static int writeStringToBuffer(void *buff, const char * string) {
+static int writeStringToBuffer(void *buff, const char *string) {
   size_t length = strlen(string) + 1;
   memcpy(buff, string, length);
   return length;

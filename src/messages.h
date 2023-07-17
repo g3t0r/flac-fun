@@ -47,6 +47,7 @@ struct DoListSongsInAlbumsMessage {
 
 struct AlbumListElement {
   uint16_t albumId;
+  uint8_t nameLength;
   char *name;
 };
 
