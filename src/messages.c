@@ -254,7 +254,7 @@ deserializeDoListSongsInAlbumMessage(int fd,
 
 static int deserializeAlbumsMessage(int fd, struct AlbumsMessage **dst) {
   int staticSize = sizeof(struct AlbumsMessage);
-  *dst = realloc(*dst, (*dst)->size * sizeof(staticSize));
+  *dst = realloc(*dst, sizeof(char) * staticSize);
   if (*dst == NULL) {
     printf("Memory error: %s\n", strerror(errno));
     exit(1);
