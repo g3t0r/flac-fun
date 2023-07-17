@@ -178,14 +178,14 @@ int main() {
   int writeFd = creat("build/serialized.bin", S_IWUSR | S_IRUSR);
   int readFd = open("build/serialized.bin", S_IRUSR);
 
-  //  test__DoListSongsInAlbumMessage__SerializationDeseralization(writeFd,
-  //  readFd); test__DoListAlbumsMessage__SerializationDeseralization(writeFd,
-  //  readFd);
+  test__DoListSongsInAlbumMessage__SerializationDeseralization(writeFd,
+  readFd); test__DoListAlbumsMessage__SerializationDeseralization(writeFd,
+  readFd);
   test__AlbumsMessageSizeCalculation();
   test__AlbumsMessageSerializationDeserialization(writeFd, readFd);
-  //  test__SongsInAlbumMessageSizeCalculation();
-  //  test__SongMetadataMessageSizeCalculation();
-  //  test__SongAudioDataDataMessageSizeCalculation();
+  test__SongsInAlbumMessageSizeCalculation();
+  test__SongMetadataMessageSizeCalculation();
+  test__SongAudioDataDataMessageSizeCalculation();
   printf("Messages: all test passed\n");
 
   int forBreakpoint = 0;
