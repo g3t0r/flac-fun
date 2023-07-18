@@ -33,6 +33,9 @@ static int serializeDoListSongsInAlbumMessage(
 
 static int serializeAlbumsMessage(int fd, const struct AlbumsMessage *message);
 
+static int serializeSongsInAlbumMessage(int fd,
+                                        struct SongsInAlbumMessage *dst);
+
 static int deserializeDoListAlbumsMessage(int fd,
                                           struct DoListAlbumsMessage **dst);
 
@@ -236,6 +239,46 @@ static int serializeAlbumsMessage(int fd, const struct AlbumsMessage *message) {
 
   writeLoop(fd, buffer, total);
 
+  return 0;
+}
+
+static int serializeSongsInAlbumMessage(int fd,
+                                        struct SongsInAlbumMessage *message) {
+  MessageSize total = calculateMessageSongsInAlbumSize(message);
+  char *buffer = malloc(sizeof(char) * total);
+
+  MessageSize inBuffer = 0;
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer,      //
+                                   &message->type,         //
+                                   sizeof(message->type)); //
+
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer,      //
+                                   &total,                 //
+                                   sizeof(message->size)); //
+
+  inBuffer += writeIntegerToBuffer(buffer + inBuffer,               //
+                                   &message->numberOfSongs,         //
+                                   sizeof(message->numberOfSongs)); //
+
+  for (size_t i = 0; i < message->numberOfSongs; i++) {
+    struct SongListElement *song = message->songList + i;
+
+    inBuffer += writeIntegerToBuffer(buffer + inBuffer,     //
+                                     &song->songId,         //
+                                     sizeof(song->songId)); //
+
+    inBuffer += writeIntegerToBuffer(buffer + inBuffer,         //
+                                     &song->nameLength,         //
+                                     sizeof(song->nameLength)); //
+
+    inBuffer += writeStringToBuffer(buffer + inBuffer, song->name);
+
+    inBuffer += writeIntegerToBuffer(buffer + inBuffer,              //
+                                     &song->lengthInSeconds,         //
+                                     sizeof(song->lengthInSeconds)); //
+  }
+
+  writeLoop(fd, buffer, total);
   return 0;
 }
 
