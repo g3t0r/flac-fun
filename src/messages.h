@@ -34,12 +34,12 @@ struct Message {
   MessageSize size;
 };
 
-struct DoListAlbumsMessage {
+struct DoListAlbumsListMessage {
   MessageType_8b type;
   MessageSize size;
 };
 
-struct DoListSongsInAlbumsMessage {
+struct DoListSongsInAlbumsListMessage {
   MessageType_8b type;
   MessageSize size;
   AlbumId albumId;
@@ -51,7 +51,7 @@ struct AlbumListElement {
   char *name;
 };
 
-struct AlbumsMessage {
+struct AlbumsListMessage {
   MessageType_8b type;
   MessageSize size;
   uint32_t numberOfAlbums;
@@ -123,7 +123,7 @@ int serializeMessage(int fd, const struct Message *message);
 
 /* =============== size calculation functions================= */
 
-MessageSize messageAlbumsGetSize(const struct AlbumsMessage *message);
+MessageSize calculateMessageAlbumsListSize(const struct AlbumsListMessage *message);
 
 MessageSize
 calculateMessageSongsInAlbumSize(const struct SongsInAlbumMessage *message);

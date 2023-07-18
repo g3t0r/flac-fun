@@ -8,12 +8,12 @@
 #include <string.h>
 #include <sys/stat.h>
 
-static void test__DoListAlbumsMessage__SerializationDeseralization(int writeFd,
+static void test__DoListAlbumsListMessage__SerializationDeseralization(int writeFd,
                                                                    int readFd) {
-  struct DoListAlbumsMessage toSerialize;
+  struct DoListAlbumsListMessage toSerialize;
   toSerialize.type = DO_LIST_ALBUMS;
   toSerialize.size = MESSAGE_DO_LIST_ALBUMS_SIZE;
-  struct DoListAlbumsMessage *deserialized;
+  struct DoListAlbumsListMessage *deserialized;
 
   serializeMessage(writeFd, (struct Message *)&toSerialize);
   deserializeMessage(readFd, (struct Message **)&deserialized);
@@ -25,11 +25,11 @@ static void test__DoListAlbumsMessage__SerializationDeseralization(int writeFd,
 static void
 test__DoListSongsInAlbumMessage__SerializationDeseralization(int writeFd,
                                                              int readFd) {
-  struct DoListSongsInAlbumsMessage toSerialize;
+  struct DoListSongsInAlbumsListMessage toSerialize;
   toSerialize.type = DO_LIST_SONGS_IN_ALBUM;
   toSerialize.size = MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE;
   toSerialize.albumId = 127;
-  struct DoListSongsInAlbumsMessage *deserialized;
+  struct DoListSongsInAlbumsListMessage *deserialized;
 
   serializeMessage(writeFd, (struct Message *)&toSerialize);
   deserializeMessage(readFd, (struct Message **)&deserialized);
@@ -39,7 +39,7 @@ test__DoListSongsInAlbumMessage__SerializationDeseralization(int writeFd,
   assert(toSerialize.size == deserialized->size);
 }
 
-static void test__AlbumsMessageSizeCalculation() {
+static void test__AlbumsListMessageSizeCalculation() {
   char *albumNames[2] = {"Artist 1 - Album 1", "Artist 2 - Album 2"};
 
   struct AlbumListElement albumList[2] = {
@@ -47,7 +47,7 @@ static void test__AlbumsMessageSizeCalculation() {
       {2, strlen(albumNames[1]) + 1, albumNames[1]},
   };
 
-  struct AlbumsMessage message = {
+  struct AlbumsListMessage message = {
       ALBUMS,   //
       0,        // value not important for calculation
       2,        //
@@ -64,12 +64,12 @@ static void test__AlbumsMessageSizeCalculation() {
                      strlen(albumList[0].name) + 1 +   //
                      strlen(albumList[1].name) + 1;    //
 
-  int calculatedSize = messageAlbumsGetSize(&message);
+  int calculatedSize = calculateMessageAlbumsListSize(&message);
 
   assert(expectedSize == calculatedSize);
 }
 
-static void test__AlbumsMessageSerializationDeserialization(int writeFd,
+static void test__AlbumsListMessageSerializationDeserialization(int writeFd,
                                                             int readFd) {
 
   char *albumNames[2] = {"Artist 1 - Album 1", "Artist 2 - Album 2"};
@@ -79,7 +79,7 @@ static void test__AlbumsMessageSerializationDeserialization(int writeFd,
       {2, strlen(albumNames[1]) + 1, albumNames[1]},
   };
 
-  struct AlbumsMessage toSerialize = {
+  struct AlbumsListMessage toSerialize = {
       ALBUMS,   //
       0,        // value not important for calculation
       2,        //
@@ -88,9 +88,9 @@ static void test__AlbumsMessageSerializationDeserialization(int writeFd,
 
   serializeMessage(writeFd, (const struct Message *)&toSerialize);
 
-  MessageSize calculatedSize = messageAlbumsGetSize(&toSerialize);
+  MessageSize calculatedSize = calculateMessageAlbumsListSize(&toSerialize);
 
-  struct AlbumsMessage *deserialized;
+  struct AlbumsListMessage *deserialized;
   deserializeMessage(readFd, (struct Message **)&deserialized);
 
   assert(toSerialize.type == deserialized->type);
@@ -180,9 +180,9 @@ int main() {
   int readFd = open("build/serialized.bin", S_IRUSR);
 
   test__DoListSongsInAlbumMessage__SerializationDeseralization(writeFd, readFd);
-  test__DoListAlbumsMessage__SerializationDeseralization(writeFd, readFd);
-  test__AlbumsMessageSizeCalculation();
-  test__AlbumsMessageSerializationDeserialization(writeFd, readFd);
+  test__DoListAlbumsListMessage__SerializationDeseralization(writeFd, readFd);
+  test__AlbumsListMessageSizeCalculation();
+  test__AlbumsListMessageSerializationDeserialization(writeFd, readFd);
   test__SongsInAlbumMessageSizeCalculation();
   test__SongMetadataMessageSizeCalculation();
   test__SongAudioDataDataMessageSizeCalculation();
