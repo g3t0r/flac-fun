@@ -17,7 +17,7 @@ static MessageSize
 messageAlbumListElementGetSize(const struct AlbumListElement *message);
 
 static MessageSize
-messageSongsListElementGetSize(const struct SongListElement *song);
+calculateMessageSongsListElementSize(const struct SongListElement *song);
 
 static int
 serializeDoListAlbumsMessage(int fd, const struct DoListAlbumsMessage *message);
@@ -134,11 +134,12 @@ messageSongAudioDataGetSize(const struct SongAudioDataMessage *message) {
          message->bytesSize * sizeof(char);
 }
 
-MessageSize messageSongsInAlbumSize(const struct SongsInAlbumMessage *message) {
+MessageSize
+calculateMessageSongsInAlbumSize(const struct SongsInAlbumMessage *message) {
   int size = MESSAGE_HEADER_SIZE;
   size += sizeof(message->numberOfSongs);
   for (int i = 0; i < message->numberOfSongs; i++) {
-    size += messageSongsListElementGetSize(message->songList + i);
+    size += calculateMessageSongsListElementSize(message->songList + i);
   }
   return size;
 }
@@ -155,9 +156,11 @@ messageAlbumListElementGetSize(const struct AlbumListElement *message) {
 }
 
 static MessageSize
-messageSongsListElementGetSize(const struct SongListElement *song) {
-  return sizeof(song->songId) + sizeof(song->lengthInSeconds) +
-         strlen(song->name) + 1;
+calculateMessageSongsListElementSize(const struct SongListElement *song) {
+  return sizeof(song->songId) +            //
+         sizeof(song->nameLength) +        //
+         sizeof(char) * song->nameLength + //
+         sizeof(song->lengthInSeconds);    //
 }
 
 /* =================== serialization functions ==================== */

@@ -107,10 +107,12 @@ static void test__AlbumsMessageSerializationDeserialization(int writeFd,
 }
 
 static void test__SongsInAlbumMessageSizeCalculation() {
+
+  char *songs[3] = {"Metallica - One", "Metallica - Two", "Metallica - Three"};
   struct SongListElement songList[3] = {
-      {1, "Metallica - One", 60},
-      {1, "Metallica - Two", 120},
-      {1, "Metallica - Three", 180},
+      {1, strlen(songs[0]) + 1, songs[0], 60},
+      {2, strlen(songs[1]) + 1, songs[1], 120},
+      {3, strlen(songs[2]) + 1, songs[2], 180},
   };
 
   struct SongsInAlbumMessage message = {
@@ -118,20 +120,19 @@ static void test__SongsInAlbumMessageSizeCalculation() {
       0, // real size no needed for calculation
       3, songList};
 
-  size_t expectedSize = sizeof(message.type) +                //
-                        sizeof(message.size) +                //
-                        sizeof(message.numberOfSongs) +       //
-                        sizeof(songList[0].songId) +          //
-                        sizeof(songList[1].songId) +          //
-                        sizeof(songList[2].songId) +          //
-                        sizeof(songList[0].lengthInSeconds) + //
-                        sizeof(songList[1].lengthInSeconds) + //
-                        sizeof(songList[2].lengthInSeconds) + //
-                        strlen(songList[0].name) + 1 +        //
-                        strlen(songList[1].name) + 1 +        //
-                        strlen(songList[2].name) + 1;         //
+  size_t expectedSize = sizeof(message.type) +         //
+                        sizeof(message.size) +         //
+                        sizeof(message.numberOfSongs); //
 
-  MessageSize calculatedSize = messageSongsInAlbumSize(&message);
+  for (size_t i = 0; i < 3; i++) {
+    struct SongListElement song = songList[i];
+    expectedSize += sizeof(song.songId);
+    expectedSize += sizeof(song.nameLength);
+    expectedSize += sizeof(char) * song.nameLength;
+    expectedSize += sizeof(song.lengthInSeconds);
+  }
+
+  MessageSize calculatedSize = calculateMessageSongsInAlbumSize(&message);
   assert(expectedSize == calculatedSize);
 }
 
@@ -178,9 +179,8 @@ int main() {
   int writeFd = creat("build/serialized.bin", S_IWUSR | S_IRUSR);
   int readFd = open("build/serialized.bin", S_IRUSR);
 
-  test__DoListSongsInAlbumMessage__SerializationDeseralization(writeFd,
-  readFd); test__DoListAlbumsMessage__SerializationDeseralization(writeFd,
-  readFd);
+  test__DoListSongsInAlbumMessage__SerializationDeseralization(writeFd, readFd);
+  test__DoListAlbumsMessage__SerializationDeseralization(writeFd, readFd);
   test__AlbumsMessageSizeCalculation();
   test__AlbumsMessageSerializationDeserialization(writeFd, readFd);
   test__SongsInAlbumMessageSizeCalculation();

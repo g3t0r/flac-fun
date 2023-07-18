@@ -60,6 +60,7 @@ struct AlbumsMessage {
 
 struct SongListElement {
   SongId songId;
+  uint8_t nameLength;
   char *name;
   uint16_t lengthInSeconds;
 };
@@ -124,7 +125,8 @@ int serializeMessage(int fd, const struct Message *message);
 
 MessageSize messageAlbumsGetSize(const struct AlbumsMessage *message);
 
-MessageSize messageSongsInAlbumSize(const struct SongsInAlbumMessage *message);
+MessageSize
+calculateMessageSongsInAlbumSize(const struct SongsInAlbumMessage *message);
 
 MessageSize
 messageSongMetadataGetSize(const struct SongMetadataMessage *message);
