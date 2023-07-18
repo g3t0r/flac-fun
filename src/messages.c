@@ -20,18 +20,21 @@ static MessageSize
 calculateMessageSongsListElementSize(const struct SongListElement *song);
 
 static int
-serializeDoListAlbumsMessage(int fd, const struct DoListAlbumsListMessage *message);
+serializeDoListAlbumsMessage(int fd,
+                             const struct DoListAlbumsListMessage *message);
 
 static int serializeDoListSongsInAlbumMessage(
     int fd, const struct DoListSongsInAlbumsListMessage *message);
 
 static int
-serializeDoListAlbumsMessage(int fd, const struct DoListAlbumsListMessage *message);
+serializeDoListAlbumsMessage(int fd,
+                             const struct DoListAlbumsListMessage *message);
 
 static int serializeDoListSongsInAlbumMessage(
     int fd, const struct DoListSongsInAlbumsListMessage *message);
 
-static int serializeAlbumsListMessage(int fd, const struct AlbumsListMessage *message);
+static int serializeAlbumsListMessage(int fd,
+                                      const struct AlbumsListMessage *message);
 
 static int serializeSongsInAlbumMessage(int fd,
                                         struct SongsInAlbumMessage *dst);
@@ -39,11 +42,13 @@ static int serializeSongsInAlbumMessage(int fd,
 static int deserializeDoListAlbumsMessage(int fd,
                                           struct DoListAlbumsListMessage **dst);
 
-static int
-deserializeDoListSongsInAlbumMessage(int fd,
-                                     struct DoListSongsInAlbumsListMessage **dst);
+static int deserializeDoListSongsInAlbumMessage(
+    int fd, struct DoListSongsInAlbumsListMessage **dst);
 
 static int deserializeAlbumsListMessage(int fd, struct AlbumsListMessage **dst);
+
+static int deserializeSongsInAlbumMessage(int fd,
+                                          struct SongsInAlbumMessage **dst);
 
 static int writeIntegerToBuffer(void *buff, const void *integer, size_t size);
 
@@ -74,13 +79,15 @@ const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE =
 int serializeMessage(int fd, const struct Message *message) {
   switch (message->type) {
   case DO_LIST_ALBUMS:
-    return serializeDoListAlbumsMessage(fd,
-                                        (struct DoListAlbumsListMessage *)message);
+    return serializeDoListAlbumsMessage(
+        fd, (struct DoListAlbumsListMessage *)message);
   case DO_LIST_SONGS_IN_ALBUM:
     return serializeDoListSongsInAlbumMessage(
         fd, (struct DoListSongsInAlbumsListMessage *)message);
   case ALBUMS:
     return serializeAlbumsListMessage(fd, (struct AlbumsListMessage *)message);
+  case SONGS_IN_ALBUM:
+    return serializeSongsInAlbumMessage(fd, (struct SongsInAlbumMessage *) message);
   default:
     return -1;
   };
@@ -102,13 +109,15 @@ int deserializeMessage(int fd, struct Message **dst) {
 
   switch ((enum MessageType)(*dst)->type) {
   case DO_LIST_ALBUMS:
-    return deserializeDoListAlbumsMessage(fd,
-                                          (struct DoListAlbumsListMessage **)dst);
+    return deserializeDoListAlbumsMessage(
+        fd, (struct DoListAlbumsListMessage **)dst);
   case DO_LIST_SONGS_IN_ALBUM:
     return deserializeDoListSongsInAlbumMessage(
         fd, (struct DoListSongsInAlbumsListMessage **)dst);
   case ALBUMS:
     return deserializeAlbumsListMessage(fd, (struct AlbumsListMessage **)dst);
+  case SONGS_IN_ALBUM:
+    return deserializeSongsInAlbumMessage(fd, (struct SongsInAlbumMessage **)dst);
   default:
     return -1;
   }
@@ -116,7 +125,8 @@ int deserializeMessage(int fd, struct Message **dst) {
 
 /* =================== message size calculation ==================== */
 
-MessageSize calculateMessageAlbumsListSize(const struct AlbumsListMessage *message) {
+MessageSize
+calculateMessageAlbumsListSize(const struct AlbumsListMessage *message) {
   int size = MESSAGE_HEADER_SIZE;
   size += sizeof(message->numberOfAlbums);
   for (int i = 0; i < message->numberOfAlbums; i++) {
@@ -205,7 +215,8 @@ static int serializeDoListSongsInAlbumMessage(
   return 0;
 }
 
-static int serializeAlbumsListMessage(int fd, const struct AlbumsListMessage *message) {
+static int serializeAlbumsListMessage(int fd,
+                                      const struct AlbumsListMessage *message) {
 
   MessageSize total = calculateMessageAlbumsListSize(message);
   char *buffer = malloc(sizeof(char) * total);
@@ -284,21 +295,21 @@ static int serializeSongsInAlbumMessage(int fd,
 
 /* =================== deserialization functions ==================== */
 
-static int deserializeDoListAlbumsMessage(int fd,
-                                          struct DoListAlbumsListMessage **dst) {
+static int
+deserializeDoListAlbumsMessage(int fd, struct DoListAlbumsListMessage **dst) {
   return 0;
 }
 
-static int
-deserializeDoListSongsInAlbumMessage(int fd,
-                                     struct DoListSongsInAlbumsListMessage **dst) {
+static int deserializeDoListSongsInAlbumMessage(
+    int fd, struct DoListSongsInAlbumsListMessage **dst) {
 
   readIntegerFromFile(fd, &(*dst)->albumId, sizeof((*dst)->albumId));
 
   return 0;
 }
 
-static int deserializeAlbumsListMessage(int fd, struct AlbumsListMessage **dst) {
+static int deserializeAlbumsListMessage(int fd,
+                                        struct AlbumsListMessage **dst) {
   int staticSize = sizeof(struct AlbumsListMessage);
   *dst = realloc(*dst, sizeof(char) * staticSize);
   if (*dst == NULL) {
@@ -320,6 +331,36 @@ static int deserializeAlbumsListMessage(int fd, struct AlbumsListMessage **dst) 
 
   return 0;
 }
+
+static int deserializeSongsInAlbumMessage(int fd,
+                                          struct SongsInAlbumMessage **dst) {
+  int staticSize = sizeof(struct SongsInAlbumMessage);
+  *dst = realloc(*dst, sizeof(char) * staticSize);
+  if (*dst == NULL) {
+    printf("Memory error: %s\n", strerror(errno));
+    exit(1);
+  }
+
+  readIntegerFromFile(fd, &(*dst)->numberOfSongs,
+                      sizeof((*dst)->numberOfSongs));
+
+  (*dst)->songList = malloc(                                       //
+      sizeof(struct SongsInAlbumMessage) * (*dst)->numberOfSongs); //
+
+  for (size_t i = 0; i < (*dst)->numberOfSongs; i++) {
+    struct SongListElement *song = (*dst)->songList + i;
+    readIntegerFromFile(fd, &song->songId, sizeof(song->songId));
+    readIntegerFromFile(fd, &song->nameLength,     //
+                        sizeof(song->nameLength)); //
+    readStringFromFile(fd, &song->name, song->nameLength);
+    readIntegerFromFile(fd, &song->lengthInSeconds,     //
+                        sizeof(song->lengthInSeconds)); //
+  }
+
+  return 0;
+}
+
+/* =================== write functions ==================== */
 
 static int writeIntegerToBuffer(void *buff, const void *integer, size_t size) {
   if (size == sizeof(uint8_t)) {
