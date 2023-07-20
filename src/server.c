@@ -29,8 +29,8 @@ int main(int argc, char **argv) {
 
   struct sockaddr_in addrIn;
   addrIn.sin_family = AF_INET;
-  addrIn.sin_port = htons(FFUN_SERVER_DEFAULT_PORT);
-  inet_pton(AF_INET, (const char *)&FFUN_SERVER_DEFAULT_IP,
+  addrIn.sin_port = htons(8080);
+  inet_pton(AF_INET, "0.0.0.0",
             &addrIn.sin_addr.s_addr);
   addrIn.sin_addr.s_addr = htonl(addrIn.sin_addr.s_addr);
 
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
   nfds_t nfds = 1;
 
   while (1) {
-    printf("Dupa, waiting for poll\n");
+    printf("Waiting for poll\n");
     int result = poll(&pollFileDescriptor, nfds, -1);
     printf("Results: %d, R-events: %d\n", result, pollFileDescriptor.revents);
 
@@ -73,7 +73,6 @@ int main(int argc, char **argv) {
       }
 
       printf("%s\n", buffer);
-      // write(p ollFileDescriptor.fd, bufferOut, strlen(bufferOut));
     }
 
   }
