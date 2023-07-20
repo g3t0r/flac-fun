@@ -18,7 +18,7 @@
 
 int main(int argc, char **argv) {
 
-  int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  int sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (sd == -1) {
     printf("Problem creating socket: %s\n", strerror(errno));
     exit(1);
@@ -40,36 +40,42 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  result = listen(sd, FFUN_SERVER_DEFAULT_CONNECTION_POOL);
-  if (result != 0) {
-    printf("Problem listening on socket: %s\n", strerror(errno));
-    exit(1);
-  }
-  printf("Started server on port %d with PID %u\n", ntohs(addrIn.sin_port),
-         getpid());
+
+  struct pollfd pollFileDescriptor;
+  pollFileDescriptor.fd = sd;
+  pollFileDescriptor.events = POLLIN;
+  nfds_t nfds = 1;
 
   while (1) {
-    struct sockaddr_in *connAddrIn = malloc(sizeof(struct sockaddr_in));
-    socklen_t connSockAddrLen;
-    int connectionSd =
-        accept(sd, (struct sockaddr *)connAddrIn, &connSockAddrLen);
+    printf("Dupa, waiting for poll\n");
+    int result = poll(&pollFileDescriptor, nfds, -1);
+    printf("Results: %d, R-events: %d\n", result, pollFileDescriptor.revents);
 
-    if (connectionSd == -1) {
-      printf("Problem accepting connection: %s\n", strerror(errno));
-      exit(1);
+    if(result == -1) {
+      printf("Error with poll\n");
+      close(sd);
+      pthread_exit(0);
     }
 
-    printf("ConnectionSd: %x\n", connectionSd);
+    if(pollFileDescriptor.revents & POLLNVAL) {
+      printf("Incorrect poll request\n");
+    } else if(pollFileDescriptor.revents & POLLERR) {
+      printf("Socket hung up\n");
+    }
 
-    struct ConnectionContext *context =
-        malloc(sizeof(struct ConnectionContext));
+    if(result > 0 && (pollFileDescriptor.revents & POLLIN) != 0) {
+      char buffer[256];
+      memset(buffer, 0, 256);
+      int readBytes = read(pollFileDescriptor.fd, (void*) buffer, 256);
 
-    context->connectionSockFd = connectionSd;
-    context->clientAddrIn = connAddrIn;
+      if(readBytes == 0) {
+        break;
+      }
 
-    pthread_t tid;
-    result = pthread_create(&tid, NULL, (void *(*)(void *))handleConnection,
-                            (void *)context);
+      printf("%s\n", buffer);
+      // write(p ollFileDescriptor.fd, bufferOut, strlen(bufferOut));
+    }
+
   }
 
 }

@@ -27,13 +27,13 @@ messages-test:
 .PHONY: server
 server:
 	mkdir -p build
-	$(CC) -g src/server.c -r $(LINKED_OBJECTS) $(SERVER_LIBS) -o build/server
+	$(CC) src/server.c $(SHARED_SOURCES) $(SERVER_LIBS) -o build/server
 
 
 .PHONY: client
 client:
 	mkdir -p build
-	$(CC) -g src/client.c -r $(LINKED_OBJECTS) $(CLIENT_LIBS) -o build/client
+	$(CC) src/client.c $(SHARED_SOURCES) $(CLIENT_LIBS) -o build/client
 
 .PHONY: clean
 clean:
