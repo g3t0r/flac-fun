@@ -1,3 +1,7 @@
+/*
+** how to compile:
+** gcc ao-flac-streaming.c circle-buffer.c -lFLAC -lao -ldl -lm -lpthread
+ */
 #include "circle-buffer.h"
 #include <FLAC/format.h>
 #include <FLAC/ordinals.h>
@@ -146,6 +150,7 @@ void *feedBuffer() {
     struct CircleBufferEntry *entry =
         writeDataToBuffer(circleBuffer, data, readBytes);
     assert(entry != NULL);
+    // network latency simulation
     if (iteration % 50 > 15) {
       usleep(100 * 1000);
     } else {
