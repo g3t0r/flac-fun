@@ -16,10 +16,11 @@ struct DataMessage {
 };
 
 /**
- * Function converts DataMessage into big endian bytes, and stored them into
- * buffer
+ * Function converts DataMessage into big endian bytes, and stored them
+ *          into buffer
  *
- * @param message Pointer to DataMessage
+ * @param message Pointer to DataMessage.
+ *
  * @param buffer Buffer in which bytes should be stored. Memory under this
  *               pointer has to be already allocated
  *
@@ -29,9 +30,10 @@ uint32_t serializeDataMessage(const struct DataMessage *const message,
                               char *buffer);
 
 /**
- * Function convert bytes from buffer to DataMessage
+ * Function convert bytes from buffer to DataMessage.
  *
  * @param buffer Buffer of bytes stored in big endian
+ *
  * @param message Pointer to message that bytes should be read into.
  *                Should be already allocated.
  *

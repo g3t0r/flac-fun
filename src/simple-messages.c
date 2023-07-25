@@ -1,4 +1,7 @@
 #include "simple-messages.h"
+#include "bytes.h"
+#include <stdlib.h>
+#include <string.h>
 
 /**
  * Function converts DataMessage into big endian bytes, and stored them into
@@ -11,7 +14,15 @@
  * @return Number of bytes written to the buffer
  */
 uint32_t serializeDataMessage(const struct DataMessage *const message,
-                              char *buffer);
+                              char *buffer) {
+  int writtenBytes = writeIntegerToBuffer(
+      buffer + writtenBytes, &message->dataSize, sizeof(message->dataSize));
+
+  memcpy(buffer + writtenBytes, &message->data, message->dataSize);
+  writtenBytes += message->dataSize;
+
+  return writtenBytes;
+}
 
 /**
  * Function convert bytes from buffer to DataMessage
@@ -23,32 +34,22 @@ uint32_t serializeDataMessage(const struct DataMessage *const message,
  * @return Number of bytes read from the buffer
  */
 uint32_t deserializeDataMessage(const char *const buffer,
-                                struct DataMessage *message);
+                                struct DataMessage *message) {
+
+  int readBytes = readIntegerFromBuffer(&message->dataSize, buffer,
+                                        sizeof(message->dataSize));
+
+  message->data = malloc(sizeof(char) * message->dataSize);
+  memcpy(message->data, buffer + readBytes, message->dataSize);
+  readBytes += message->dataSize;
+
+  return readBytes;
+}
 
 /**
  * Function calculates number of bytes needed to serialize DataMessage,
  *          including memory pointed by DataMessage.data
  */
-uint32_t dataMessageGetBytesLength(const struct DataMessage *const message);
-
-
-static int readIntegerFromBuffer(int fd, void *integer, size_t size) {
-  int readBytes = 0;
-  if (size == sizeof(uint8_t)) {
-
-
-  } else if (size == sizeof(uint16_t)) {
-
-    uint16_t networkByteOrder;
-    readLoop(fd, &networkByteOrder, size);
-    *(uint16_t *)integer = ntohs(networkByteOrder);
-
-  } else {
-    assert(sizeof(uint32_t) == size);
-    uint32_t netwotkByteOrder;
-    readLoop(fd, &netwotkByteOrder, size);
-    *(uint32_t *)integer = ntohl(netwotkByteOrder);
-    int breakpointPlaceholder = 0;
-  }
-  return size;
+uint32_t dataMessageGetBytesLength(const struct DataMessage *const message) {
+  return sizeof(message->dataSize) + message->dataSize * sizeof(char);
 }
