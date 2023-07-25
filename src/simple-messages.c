@@ -4,10 +4,54 @@
 #include <string.h>
 
 /**
+ * Function converts MessageHeader into big endian bytes, and stored them
+ *          into buffer
+ *
+ * @param message Pointer to MessageHeader.
+ *
+ * @param buffer Buffer in which bytes should be stored. Memory under this
+ *               pointer has to be already allocated
+ *
+ * @return Number of bytes written to the buffer
+ */
+uint32_t serializeMessageHeader(const struct MessageHeader *const header,
+                                char *buffer) {
+  int writtenBytes =
+      writeIntegerToBuffer(buffer, &header->type, sizeof(header->size));
+
+  writtenBytes += writeIntegerToBuffer(buffer + writtenBytes, &header->size,
+                                       sizeof(header->size));
+
+  return writtenBytes;
+}
+
+/**
+ * Function convert bytes from buffer to MessageHeader.
+ *
+ * @param buffer Buffer of bytes stored in big endian
+ *
+ * @param message Pointer to message that bytes should be read into.
+ *                Should be already allocated.
+ *
+ * @return Number of bytes read from the buffer
+ */
+uint32_t deserializeMessageHeader(const char *const buffer,
+                                  struct MessageHeader *header) {
+  int readBytes =
+      readIntegerFromBuffer(&header->type, buffer, sizeof(header->type));
+
+  readBytes +=
+      readIntegerFromBuffer(&header->size, buffer, sizeof(header->size));
+
+  return readBytes;
+}
+
+/**
  * Function converts DataMessage into big endian bytes, and stored them into
  * buffer
  *
  * @param message Pointer to DataMessage
+ *
  * @param buffer Buffer in which bytes should be stored. Memory under this
  *               pointer has to be already allocated
  *
