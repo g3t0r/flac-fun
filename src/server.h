@@ -2,19 +2,33 @@
 #define FFUN_SERVER_H_
 
 #include <netinet/in.h>
+#include <stdint.h>
+#include <stdio.h>
 
-enum { FFUN_SERVER_DEFAULT_PORT = 1144 };
+enum { FFUN_SERVER_DEFAULT_PORT = 8080 };
 
 enum { FFUN_SERVER_DEFAULT_CONNECTION_POOL = 5 };
 
 const char FFUN_SERVER_DEFAULT_IP[] = "0.0.0.0";
 const char FFUN_SERVER_MESSAGE_RECEIVED[] = "Server received: %s";
 
-struct ConnectionContext {
-  int connectionSockFd;
-  struct sockaddr_in *clientAddrIn;
+struct ServerContext {
+  int socket;
+  FILE * openedFile;
 };
 
-void *handleConnection(struct ConnectionContext *context);
+struct ClientContext {
+  struct sockaddr * clientAddr;
+  socklen_t clientAddrSize;
+};
+
+struct HandleClientArgs {
+  uint16_t rawMessageSize;
+  char * rawMessage;
+  struct ServerContext * serverContext;
+  struct ClientContext * clientContext;
+};
+
+void *handleClient(struct HandleClientArgs * args);
 
 #endif // FFUN_SERVER_H_

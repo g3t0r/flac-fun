@@ -1,0 +1,3 @@
+#ifndef FFUN_UDP_DGRAM_MAX_SIZE
+#define FFUN_UDP_DGRAM_MAX_SIZE 508
+#endif

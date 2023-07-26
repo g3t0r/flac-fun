@@ -4,15 +4,24 @@
 #include <stdint.h>
 
 #define MSG_HEADER_SIZE 5
+#define MSG_FEED_ME_SIZE 2
+
+enum MessageType { HEARTBEAT, DATA, FEED_ME };
 
 struct MessageHeader {
   uint8_t type;
   uint32_t size;
 };
 
+struct Message {};
+
 struct DataMessage {
   uint32_t dataSize;
   char *data;
+};
+
+struct FeedMeMessage {
+  uint16_t dataSize;
 };
 
 /**
@@ -74,5 +83,8 @@ uint32_t deserializeDataMessage(const char *const buffer,
  *          including memory pointed by DataMessage.data
  */
 uint32_t dataMessageGetBytesLength(const struct DataMessage *const message);
+
+uint16_t deserializeFeedMeMessage(const char *const buffer,
+                                  struct FeedMeMessage *message);
 
 #endif // SIMPLE_MESSAGES_H_

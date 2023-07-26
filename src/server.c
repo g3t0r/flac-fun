@@ -1,11 +1,15 @@
 #include "server.h"
+#include "config.h"
+#include "messages.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
 #include <bits/pthreadtypes.h>
 #include <errno.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,12 +17,77 @@
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <poll.h>
-#include <signal.h>
+
+static void initializeServer(struct ServerContext *serverContext);
+
+static int handleFeedMeMessage(struct ServerContext *serverContext,
+                               struct ClientContext *clientContext,
+                               struct FeedMeMessage *message);
 
 int main(int argc, char **argv) {
 
-  int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  struct ServerContext serverContext;
+  initializeServer(&serverContext);
+  printf("sd: %u\n", serverContext.socket);
+
+  while (1) {
+    printf("Inside loop\n");
+    struct sockaddr_in *connAddrIn = malloc(sizeof(struct sockaddr_in));
+    socklen_t connSockAddrLen;
+
+    struct pollfd pollFileDescriptor;
+    pollFileDescriptor.fd = serverContext.socket;
+    pollFileDescriptor.events = POLLIN;
+
+    nfds_t nfds = 1;
+
+    int result = poll(&pollFileDescriptor, nfds, -1);
+    printf("Results: %d, R-events: %d\n", result, pollFileDescriptor.revents);
+
+    if (result == -1) {
+      printf("Error with poll\n");
+      close(serverContext.socket);
+    }
+
+    if (pollFileDescriptor.revents & POLLNVAL) {
+      printf("Incorrect poll request\n");
+    } else if (pollFileDescriptor.revents & POLLERR) {
+      printf("Socket hung up\n");
+    }
+
+    if (result > 0 && (pollFileDescriptor.revents & POLLIN) != 0) {
+      struct ClientContext *clientContext =
+          malloc(sizeof(struct ClientContext));
+
+      char *buffer = malloc(sizeof(char) * FFUN_UDP_DGRAM_MAX_SIZE);
+      int readBytes = recvfrom(
+          pollFileDescriptor.fd, (void *)buffer, FFUN_UDP_DGRAM_MAX_SIZE, 0,
+          clientContext->clientAddr, &clientContext->clientAddrSize);
+
+      printf("ReadBytes: %u\n", readBytes);
+
+      if (readBytes == 0) {
+        break;
+      }
+
+      struct HandleClientArgs *handleClientArgs =
+          malloc(sizeof(struct HandleClientArgs));
+
+      handleClientArgs->rawMessageSize = readBytes;
+      handleClientArgs->rawMessage = buffer;
+
+      handleClientArgs->clientContext = clientContext;
+      handleClientArgs->serverContext = &serverContext;
+
+      pthread_t thread;
+      pthread_create(&thread, NULL, (void *(*)(void *))handleClient,
+                     handleClientArgs);
+    }
+  }
+}
+
+void initializeServer(struct ServerContext *serverContext) {
+  int sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (sd == -1) {
     printf("Problem creating socket: %s\n", strerror(errno));
     exit(1);
@@ -40,83 +109,62 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  result = listen(sd, FFUN_SERVER_DEFAULT_CONNECTION_POOL);
-  if (result != 0) {
-    printf("Problem listening on socket: %s\n", strerror(errno));
-    exit(1);
-  }
+  serverContext->socket = sd;
+  serverContext->openedFile = NULL;
+
   printf("Started server on port %d with PID %u\n", ntohs(addrIn.sin_port),
          getpid());
-
-  while (1) {
-    struct sockaddr_in *connAddrIn = malloc(sizeof(struct sockaddr_in));
-    socklen_t connSockAddrLen;
-    int connectionSd =
-        accept(sd, (struct sockaddr *)connAddrIn, &connSockAddrLen);
-
-    if (connectionSd == -1) {
-      printf("Problem accepting connection: %s\n", strerror(errno));
-      exit(1);
-    }
-
-    printf("ConnectionSd: %x\n", connectionSd);
-
-    struct ConnectionContext *context =
-        malloc(sizeof(struct ConnectionContext));
-
-    context->connectionSockFd = connectionSd;
-    context->clientAddrIn = connAddrIn;
-
-    pthread_t tid;
-    result = pthread_create(&tid, NULL, (void *(*)(void *))handleConnection,
-                            (void *)context);
-  }
-
 }
 
-void * handleConnection(struct ConnectionContext *context) {
-  printf("Hello from thread tid=%uf\n", (unsigned int) pthread_self());
+void *handleClient(struct HandleClientArgs *args) {
 
-  struct pollfd pollFileDescriptor;
-  pollFileDescriptor.fd = context->connectionSockFd;
-  pollFileDescriptor.events = POLLIN;
+  printf("Hello from thread tid=%uf\n", (unsigned int)pthread_self());
+  int readBytes = 0;
+  struct MessageHeader *header = malloc(sizeof(struct MessageHeader));
 
-  nfds_t nfds = 1;
+  readBytes = deserializeMessageHeader(args->rawMessage, header);
 
+  switch ((enum MessageType)header->type) {
+  case FEED_ME: {
 
-  printf("ConnectionSd inside handleConnection: %x\n", context->connectionSockFd);
-  while(1) {
-    int result = poll(&pollFileDescriptor, nfds, -1);
-    printf("Results: %d, R-events: %d\n", result, pollFileDescriptor.revents);
-
-    if(result == -1) {
-      printf("Error with poll\n");
-      close(context->connectionSockFd);
-      pthread_exit(0);
-    }
-
-    if(pollFileDescriptor.revents & POLLNVAL) {
-      printf("Incorrect poll request\n");
-    } else if(pollFileDescriptor.revents & POLLERR) {
-      printf("Socket hung up\n");
-    }
-
-    if(result > 0 && (pollFileDescriptor.revents & POLLIN) != 0) {
-      char buffer[256];
-      int readBytes = read(pollFileDescriptor.fd, (void*) buffer, 256);
-
-      if(readBytes == 0) {
-        break;
-      }
-
-      char bufferOut[512];
-      snprintf(bufferOut, 512, FFUN_SERVER_MESSAGE_RECEIVED, buffer);
-      write(pollFileDescriptor.fd, bufferOut, strlen(bufferOut));
-    }
+    struct FeedMeMessage *message;
+    deserializeFeedMeMessage(args->rawMessage, message);
+    free(args->rawMessage);
+    args->rawMessage = NULL;
+    handleFeedMeMessage(args->serverContext, args->clientContext, message);
+    free(message);
+    break;
   }
 
-  printf("Client disconnected\n");
+  default:
+    break;
+  }
 
+  return 0;
+}
+
+static int handleFeedMeMessage(struct ServerContext *serverContext,
+                               struct ClientContext *clientContext,
+                               struct FeedMeMessage *message) {
+
+  if (serverContext->openedFile == NULL) {
+    serverContext->openedFile = fopen("../audio/1.flac", "rb");
+  }
+
+  struct MessageHeader header;
+  struct DataMessage dataMessage;
+  dataMessage.dataSize = fread(&dataMessage.dataSize, sizeof(char),
+                               message->dataSize, serverContext->openedFile);
+  header.size = dataMessageGetBytesLength(&dataMessage);
+  header.type = DATA;
+
+  char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
+
+  uint16_t writtenBytes = serializeMessageHeader(&header, buffer);
+  writtenBytes += serializeDataMessage(&dataMessage, buffer + writtenBytes);
+
+  sendto(serverContext->socket, buffer, writtenBytes, 0,
+         clientContext->clientAddr, clientContext->clientAddrSize);
 
   return 0;
 }

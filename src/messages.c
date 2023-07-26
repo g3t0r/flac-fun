@@ -1,5 +1,6 @@
 #include "messages.h"
 #include "bytes.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -14,7 +15,8 @@
  *
  * @return Number of bytes written to the buffer
  */
-uint32_t serializeMessageHeader(const struct MessageHeader *const header, char *buffer) {
+uint32_t serializeMessageHeader(const struct MessageHeader *const header,
+                                char *buffer) {
   int writtenBytes =
       writeIntegerToBuffer(buffer, &header->type, sizeof(header->size));
 
@@ -95,4 +97,10 @@ uint32_t deserializeDataMessage(const char *const buffer,
  */
 uint32_t dataMessageGetBytesLength(const struct DataMessage *const message) {
   return sizeof(message->dataSize) + message->dataSize * sizeof(char);
+}
+
+uint16_t deserializeFeedMeMessage(const char *const buffer,
+                                  struct FeedMeMessage *message) {
+  return readIntegerFromBuffer(&message->dataSize, buffer,
+                               sizeof(message->dataSize));
 }
