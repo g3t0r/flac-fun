@@ -1,137 +1,78 @@
-#ifndef _FFUN_MESSAGES_H_
-#define _FFUN_MESSAGES_H_
+#ifndef SIMPLE_MESSAGES_H_
+#define SIMPLE_MESSAGES_H_
 
-#define memberSize(Type, member) (sizeof(((Type *)0)->member))
-
-#include <stddef.h>
 #include <stdint.h>
 
-/* =================== custom types ==================== */
+#define MSG_HEADER_SIZE 5
 
-typedef uint8_t MessageType_8b;
-typedef uint32_t MessageSize;
-typedef uint16_t AlbumId;
-typedef uint8_t SongId;
-
-enum MessageType {
-  HEARTBEAT = 0,
-  DO_LIST_ALBUMS,
-  DO_LIST_SONGS_IN_ALBUM,
-  ALBUMS,
-  SONGS_IN_ALBUM,
-  DO_START_STREAM,
-  DO_PAUSE_STREAM,
-  DO_RESUME_STREAM,
-  SONG_METADATA,
-  SONG_AUDIO_DATA,
-  READY_FOR_AUDIO
+struct MessageHeader {
+  uint8_t type;
+  uint32_t size;
 };
 
-/* ==================== structs ==================== */
-
-struct Message {
-  MessageType_8b type;
-  MessageSize size;
+struct DataMessage {
+  uint32_t dataSize;
+  char *data;
 };
 
-struct DoListAlbumsListMessage {
-  MessageType_8b type;
-  MessageSize size;
-};
+/**
+ * Function converts MessageHeader into big endian bytes, and stored them
+ *          into buffer
+ *
+ * @param message Pointer to MessageHeader.
+ *
+ * @param buffer Buffer in which bytes should be stored. Memory under this
+ *               pointer has to be already allocated
+ *
+ * @return Number of bytes written to the buffer
+ */
+uint32_t serializeMessageHeader(const struct MessageHeader *const header,
+                                char *buffer);
 
-struct DoListSongsInAlbumsListMessage {
-  MessageType_8b type;
-  MessageSize size;
-  AlbumId albumId;
-};
+/**
+ * Function convert bytes from buffer to MessageHeader.
+ *
+ * @param buffer Buffer of bytes stored in big endian
+ *
+ * @param message Pointer to message that bytes should be read into.
+ *                Should be already allocated.
+ *
+ * @return Number of bytes read from the buffer
+ */
+uint32_t deserializeMessageHeader(const char *const buffer,
+                                  struct MessageHeader *header);
 
-struct AlbumListElement {
-  uint16_t albumId;
-  uint8_t nameLength;
-  char *name;
-};
+/**
+ * Function converts DataMessage into big endian bytes, and stored them
+ *          into buffer
+ *
+ * @param message Pointer to DataMessage.
+ *
+ * @param buffer Buffer in which bytes should be stored. Memory under this
+ *               pointer has to be already allocated
+ *
+ * @return Number of bytes written to the buffer
+ */
+uint32_t serializeDataMessage(const struct DataMessage *const message,
+                              char *buffer);
 
-struct AlbumsListMessage {
-  MessageType_8b type;
-  MessageSize size;
-  uint32_t numberOfAlbums;
-  struct AlbumListElement *albumList;
-};
+/**
+ * Function convert bytes from buffer to DataMessage.
+ *
+ * @param buffer Buffer of bytes stored in big endian
+ *
+ * @param message Pointer to message that bytes should be read into.
+ *                Should be already allocated.
+ *
+ * @return Number of bytes read from the buffer
+ */
+uint32_t deserializeDataMessage(const char *const buffer,
+                                struct DataMessage *message);
 
-struct SongListElement {
-  SongId songId;
-  uint8_t nameLength;
-  char *name;
-  uint16_t lengthInSeconds;
-};
+/**
+ * Function calculates number of bytes needed to serialize DataMessage,
+ *          including memory pointed by DataMessage.data
+ */
+uint32_t dataMessageGetBytesLength(const struct DataMessage *const message);
 
-struct SongsInAlbumMessage {
-  MessageType_8b type;
-  MessageSize size;
-  uint8_t numberOfSongs;
-  struct SongListElement *songList;
-};
-
-struct DoStartStreamMessage {
-  MessageType_8b type;
-  MessageSize size;
-  SongId songId;
-};
-
-struct DoPauseStreamMessage {
-  MessageType_8b type;
-  MessageSize size;
-};
-
-struct DoResumeStreamMessage {
-  MessageType_8b type;
-  MessageSize size;
-};
-
-struct SongMetadataMessage {
-  MessageType_8b type;
-  MessageSize size;
-  uint32_t bytesSize;
-  char *bytes;
-};
-
-struct SongAudioDataMessage {
-  MessageType_8b type;
-  MessageSize size;
-  uint32_t bytesSize;
-  char *bytes;
-};
-
-/* =================== message sizes ==================== */
-
-extern const int MESSAGE_HEADER_SIZE;
-
-extern const int MESSAGE_DO_LIST_ALBUMS_SIZE;
-
-extern const int MESSAGE_DO_LIST_SONGS_IN_ALBUM_SIZE;
-
-extern const int MESSAGE_DO_START_STREAM_SIZE;
-
-extern const int MESSAGE_DO_RESUME_STREAM_SIZE;
-
-/* =================== deserialization functions ==================== */
-
-int deserializeMessage(int fd, struct Message **dst);
-
-/* =================== serialization functions ==================== */
-int serializeMessage(int fd, const struct Message *message);
-
-/* =============== size calculation functions================= */
-
-MessageSize calculateMessageAlbumsListSize(const struct AlbumsListMessage *message);
-
-MessageSize
-calculateMessageSongsInAlbumSize(const struct SongsInAlbumMessage *message);
-
-MessageSize
-messageSongMetadataGetSize(const struct SongMetadataMessage *message);
-
-MessageSize
-messageSongAudioDataGetSize(const struct SongAudioDataMessage *message);
-
-#endif // _FFUN_MESSAGES_H_
+#endif // SIMPLE_MESSAGES_H_

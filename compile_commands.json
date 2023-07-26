@@ -5,12 +5,12 @@
       "-c",
       "-g",
       "-o",
-      "build/ffun",
-      "src/main.c"
+      "build/server",
+      "src/server.c"
     ],
     "directory": "/home/jan/Documents/hobby/flac-fun",
-    "file": "/home/jan/Documents/hobby/flac-fun/src/main.c",
-    "output": "/home/jan/Documents/hobby/flac-fun/build/ffun"
+    "file": "/home/jan/Documents/hobby/flac-fun/src/server.c",
+    "output": "/home/jan/Documents/hobby/flac-fun/build/server"
   },
   {
     "arguments": [
@@ -18,11 +18,63 @@
       "-c",
       "-g",
       "-o",
-      "build/ffun",
-      "src/bits.c"
+      "build/server",
+      "src/bytes.c"
     ],
     "directory": "/home/jan/Documents/hobby/flac-fun",
-    "file": "/home/jan/Documents/hobby/flac-fun/src/bits.c",
-    "output": "/home/jan/Documents/hobby/flac-fun/build/ffun"
+    "file": "/home/jan/Documents/hobby/flac-fun/src/bytes.c",
+    "output": "/home/jan/Documents/hobby/flac-fun/build/server"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-o",
+      "build/server",
+      "src/messages.c"
+    ],
+    "directory": "/home/jan/Documents/hobby/flac-fun",
+    "file": "/home/jan/Documents/hobby/flac-fun/src/messages.c",
+    "output": "/home/jan/Documents/hobby/flac-fun/build/server"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-o",
+      "build/client",
+      "src/client.c"
+    ],
+    "directory": "/home/jan/Documents/hobby/flac-fun",
+    "file": "/home/jan/Documents/hobby/flac-fun/src/client.c",
+    "output": "/home/jan/Documents/hobby/flac-fun/build/client"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-o",
+      "build/client",
+      "src/bytes.c"
+    ],
+    "directory": "/home/jan/Documents/hobby/flac-fun",
+    "file": "/home/jan/Documents/hobby/flac-fun/src/bytes.c",
+    "output": "/home/jan/Documents/hobby/flac-fun/build/client"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-o",
+      "build/client",
+      "src/messages.c"
+    ],
+    "directory": "/home/jan/Documents/hobby/flac-fun",
+    "file": "/home/jan/Documents/hobby/flac-fun/src/messages.c",
+    "output": "/home/jan/Documents/hobby/flac-fun/build/client"
   }
 ]
