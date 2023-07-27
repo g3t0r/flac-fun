@@ -149,12 +149,12 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct FeedMeMessage *message) {
 
   if (serverContext->openedFile == NULL) {
-    serverContext->openedFile = fopen("../audio/1.flac", "rb");
+    serverContext->openedFile = fopen("./audio/1.flac", "rb");
   }
 
   struct MessageHeader header;
   struct DataMessage dataMessage;
-  dataMessage.dataSize = fread(&dataMessage.dataSize, sizeof(char),
+  dataMessage.dataSize = fread(&dataMessage.data, sizeof(char),
                                message->dataSize, serverContext->openedFile);
   header.size = dataMessageGetBytesLength(&dataMessage);
   header.type = DATA;
