@@ -10,7 +10,7 @@ enum MessageType { HEARTBEAT, DATA, FEED_ME };
 
 struct MessageHeader {
   uint8_t type;
-  uint32_t size;
+  uint16_t size;
 };
 
 struct Message {};
@@ -83,6 +83,9 @@ uint32_t deserializeDataMessage(const char *const buffer,
  *          including memory pointed by DataMessage.data
  */
 uint32_t dataMessageGetBytesLength(const struct DataMessage *const message);
+
+uint16_t serializeFeedMeMessage(const struct FeedMeMessage *message,
+                                char *buffer);
 
 uint16_t deserializeFeedMeMessage(const char *const buffer,
                                   struct FeedMeMessage *message);

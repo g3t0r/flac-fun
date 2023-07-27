@@ -18,7 +18,7 @@
 uint32_t serializeMessageHeader(const struct MessageHeader *const header,
                                 char *buffer) {
   int writtenBytes =
-      writeIntegerToBuffer(buffer, &header->type, sizeof(header->size));
+      writeIntegerToBuffer(buffer, &header->type, sizeof(header->type));
 
   writtenBytes += writeIntegerToBuffer(buffer + writtenBytes, &header->size,
                                        sizeof(header->size));
@@ -42,7 +42,7 @@ uint32_t deserializeMessageHeader(const char *const buffer,
       readIntegerFromBuffer(&header->type, buffer, sizeof(header->type));
 
   readBytes +=
-      readIntegerFromBuffer(&header->size, buffer, sizeof(header->size));
+      readIntegerFromBuffer(&header->size, buffer+readBytes, sizeof(header->size));
 
   return readBytes;
 }
@@ -97,6 +97,12 @@ uint32_t deserializeDataMessage(const char *const buffer,
  */
 uint32_t dataMessageGetBytesLength(const struct DataMessage *const message) {
   return sizeof(message->dataSize) + message->dataSize * sizeof(char);
+}
+
+uint16_t serializeFeedMeMessage(const struct FeedMeMessage *message,
+                                char *buffer) {
+  return writeIntegerToBuffer(buffer, &message->dataSize,
+                              sizeof(message->dataSize));
 }
 
 uint16_t deserializeFeedMeMessage(const char *const buffer,

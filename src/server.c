@@ -127,8 +127,8 @@ void *handleClient(struct HandleClientArgs *args) {
   switch ((enum MessageType)header->type) {
   case FEED_ME: {
 
-    struct FeedMeMessage *message;
-    deserializeFeedMeMessage(args->rawMessage, message);
+    struct FeedMeMessage *message = malloc(sizeof(struct FeedMeMessage));
+    deserializeFeedMeMessage(args->rawMessage+readBytes, message);
     free(args->rawMessage);
     args->rawMessage = NULL;
     handleFeedMeMessage(args->serverContext, args->clientContext, message);
@@ -137,6 +137,7 @@ void *handleClient(struct HandleClientArgs *args) {
   }
 
   default:
+    printf("Can't handle that man\n");
     break;
   }
 

@@ -1,5 +1,7 @@
 #include "client.h"
+#include "messages.h"
 
+#include "config.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
 #include <errno.h>
@@ -13,7 +15,7 @@
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-  int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  int sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (sd == -1) {
     printf("Problem creating socket: %s\n", strerror(errno));
     exit(1);
@@ -41,52 +43,31 @@ int main(int argc, char **argv) {
 
   struct sockaddr_in serverAddrIn;
   serverAddrIn.sin_family = AF_INET;
-  serverAddrIn.sin_port = htons(1144);
+  serverAddrIn.sin_port = htons(8080);
   inet_pton(AF_INET, "127.0.0.1", (void *)&serverAddrIn.sin_addr.s_addr);
 
-  result =
-      connect(sd, (const struct sockaddr *)&serverAddrIn, sizeof(serverAddrIn));
-
-  if (result != 0) {
-    printf("Problem on connecting to server: %s\n", strerror(errno));
-    exit(1);
+  if (connect(sd, (struct sockaddr *)&serverAddrIn, sizeof(serverAddrIn)) !=
+      0) {
+    printf("Problem connecting to server, error %s\n", strerror(errno));
   }
 
-  enum { WRITE_FD = 0, READ_FD = 1 };
+  struct MessageHeader header;
+  header.size = sizeof(struct FeedMeMessage);
+  header.type = FEED_ME;
+  struct FeedMeMessage feedMe;
+  feedMe.dataSize = 500;
 
-  struct pollfd pollFileDescriptors[2];
-  pollFileDescriptors[WRITE_FD].fd = sd;
-  pollFileDescriptors[WRITE_FD].events = POLLOUT;
-  pollFileDescriptors[READ_FD].fd = sd;
-  pollFileDescriptors[READ_FD].events = POLLIN;
+  char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
-  char buffer[1024];
+  uint16_t writtenBytes = serializeMessageHeader(&header, buffer);
+  writtenBytes += serializeFeedMeMessage(&feedMe, buffer+writtenBytes);
 
-  while (1) {
-    result = poll(pollFileDescriptors, 2, -1);
-    if (result == -1) {
-      printf("Failed to poll\n");
-      exit(1);
-    }
+  send(sd, buffer, writtenBytes, 0);
+  printf("Message send, waiting for response\n");
+  recv(sd, buffer, FFUN_UDP_DGRAM_MAX_SIZE, 0);
+  struct DataMessage message;
+  int readBytes = deserializeDataMessage(buffer, &message);
+  message.data[message.dataSize - 1] = '\0';
+  printf("Received data: %s\n", message.data);
 
-    if (pollFileDescriptors[WRITE_FD].revents | POLLOUT) {
-      sprintf((char *)&buffer, "Hello, I'm a client");
-
-      int writeBytes = write(sd, buffer, strlen(buffer) + 1);
-    }
-
-    if (pollFileDescriptors[READ_FD].revents | POLLIN) {
-      int readBytes = read(sd, buffer, sizeof(buffer));
-      if (readBytes == -1) {
-        printf("Error reading from server\n");
-        exit(1);
-      } else if (readBytes == 0) {
-        printf("Server dropped connection\n");
-        exit(1);
-      }
-
-      printf("Received message from server: %s\n", buffer);
-    }
-    sleep(1);
-  }
 }
