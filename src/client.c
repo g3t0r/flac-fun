@@ -77,7 +77,8 @@ int main(int argc, char **argv) {
 
   recv(sd, buffer, FFUN_UDP_DGRAM_MAX_SIZE, 0);
   struct DataMessage message;
-  int readBytes = deserializeDataMessage(buffer, &message);
+  int readBytes = deserializeMessageHeader(buffer, &header);
+  readBytes += deserializeDataMessage(buffer+readBytes, &message);
   message.data[message.dataSize - 1] = '\0';
   printf("Received data: %s\n", message.data);
 
