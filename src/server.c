@@ -10,6 +10,7 @@
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,10 +60,13 @@ int main(int argc, char **argv) {
       struct ClientContext *clientContext =
           malloc(sizeof(struct ClientContext));
 
+      clientContext->clientAddrSize = sizeof(struct sockaddr_in);
+
       char *buffer = malloc(sizeof(char) * FFUN_UDP_DGRAM_MAX_SIZE);
-      int readBytes = recvfrom(
-          pollFileDescriptor.fd, (void *)buffer, FFUN_UDP_DGRAM_MAX_SIZE, 0,
-          clientContext->clientAddr, &clientContext->clientAddrSize);
+      int readBytes = recvfrom(pollFileDescriptor.fd, (void *)buffer,
+                               FFUN_UDP_DGRAM_MAX_SIZE, 0,
+                               (struct sockaddr *)&clientContext->clientAddr,
+                               &clientContext->clientAddrSize);
 
       printf("ReadBytes: %u\n", readBytes);
 
@@ -128,7 +132,7 @@ void *handleClient(struct HandleClientArgs *args) {
   case FEED_ME: {
 
     struct FeedMeMessage *message = malloc(sizeof(struct FeedMeMessage));
-    deserializeFeedMeMessage(args->rawMessage+readBytes, message);
+    deserializeFeedMeMessage(args->rawMessage + readBytes, message);
     free(args->rawMessage);
     args->rawMessage = NULL;
     handleFeedMeMessage(args->serverContext, args->clientContext, message);
@@ -164,8 +168,14 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
   uint16_t writtenBytes = serializeMessageHeader(&header, buffer);
   writtenBytes += serializeDataMessage(&dataMessage, buffer + writtenBytes);
 
-  sendto(serverContext->socket, buffer, writtenBytes, 0,
-         clientContext->clientAddr, clientContext->clientAddrSize);
+  int sentBytes = sendto(serverContext->socket, buffer, writtenBytes, 0,
+                         (const struct sockaddr *)&clientContext->clientAddr,
+                         clientContext->clientAddrSize);
+
+  printf("Sent bytes: %d\n", sentBytes);
+  if (sentBytes == -1) {
+    printf("error: %s\n", strerror(errno));
+  }
 
   return 0;
 }

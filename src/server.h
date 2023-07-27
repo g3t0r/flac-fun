@@ -18,7 +18,7 @@ struct ServerContext {
 };
 
 struct ClientContext {
-  struct sockaddr * clientAddr;
+  struct sockaddr_in clientAddr;
   socklen_t clientAddrSize;
 };
 

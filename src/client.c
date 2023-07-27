@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -64,6 +65,16 @@ int main(int argc, char **argv) {
 
   send(sd, buffer, writtenBytes, 0);
   printf("Message send, waiting for response\n");
+
+  struct pollfd pfd;
+  pfd.fd = sd;
+  pfd.events = POLLIN;
+
+  int pollResult =  poll(&pfd, 1, 0);
+  if(pollResult == -1) {
+    printf("Poll error: %s\n", strerror(errno));
+  }
+
   recv(sd, buffer, FFUN_UDP_DGRAM_MAX_SIZE, 0);
   struct DataMessage message;
   int readBytes = deserializeDataMessage(buffer, &message);
