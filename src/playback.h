@@ -30,21 +30,29 @@
 #include <FLAC/stream_decoder.h>
 #include <ao/ao.h>
 #include <ao/os_types.h>
+#include <bits/pthreadtypes.h>
 #include <semaphore.h>
+#include <stdint.h>
 #include "circle-buffer.h"
+#include <pthread.h>
 
 struct AOInfo {
   ao_device * device;
-  int default_driver;
+  int driver;
   ao_sample_format format;
+  uint32_t blocksize;
 };
 
 struct Playback {
   sem_t produceSemaphore;
   sem_t consumeSemaphore;
   struct CircleBuffer * circleBuffer;
-  void (*feedMeCb)(char ** data, size_t dataSize);
+  void (*feedMeCb)(void * args, char ** data, size_t dataSize);
+  void * args;
+  pthread_t requestDataLoopThread;
   FLAC__StreamDecoder * decoder;
+  struct AOInfo aoInfo;
+
 };
 
 int initPlayback(struct Playback * playback);

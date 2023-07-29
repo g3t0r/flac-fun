@@ -24,6 +24,7 @@ struct ServerInfo {
 static int initializeSocket();
 static void createServerInfo(struct ServerInfo *dst, const char *ipv4,
                              uint16_t port);
+void requestData()
 
 int main(int argc, char **argv) {
 
