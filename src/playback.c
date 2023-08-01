@@ -5,7 +5,9 @@
 #include <endian.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 FLAC__StreamDecoderWriteStatus flacWriteCb(const FLAC__StreamDecoder *decoder,
@@ -25,7 +27,6 @@ void flacErrorCb(const FLAC__StreamDecoder *decoder,
 
 void *requestDataLoop(struct Playback *playback);
 
-
 /* IMPLEMENTATION */
 
 int initPlayback(struct Playback *playback) {
@@ -43,7 +44,8 @@ int initPlayback(struct Playback *playback) {
 }
 
 int play(struct Playback *playback) {
-  pthread_create(&playback->requestDataLoopThread, NULL, (void * (*)()) requestDataLoop, playback->args);
+  pthread_create(&playback->requestDataLoopThread, NULL,
+                 (void *(*)())requestDataLoop, playback);
   FLAC__stream_decoder_process_until_end_of_stream(playback->decoder);
   pthread_join(playback->requestDataLoopThread, NULL);
   return 0;
@@ -76,12 +78,14 @@ FLAC__StreamDecoderWriteStatus flacWriteCb(const FLAC__StreamDecoder *decoder,
     }
   }
 
-  struct AOInfo * aoInfo = &playback->aoInfo;
+  struct AOInfo *aoInfo = &playback->aoInfo;
 
   int playR = ao_play(aoInfo->device, tmpBuffer, bufferSize);
 
   return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
+
+size_t globalData = 0;
 
 FLAC__StreamDecoderReadStatus flacReadCb(const FLAC__StreamDecoder *decoder,
                                          FLAC__byte buffer[], size_t *bytes,
@@ -90,9 +94,12 @@ FLAC__StreamDecoderReadStatus flacReadCb(const FLAC__StreamDecoder *decoder,
   struct Playback *playback = (struct Playback *)clientData;
   int abc = 0;
   sem_wait(&playback->consumeSemaphore);
+  printf("Reading from circle buffer\n");
   struct CircleBufferEntry *entry = readEntryFromBuffer(playback->circleBuffer);
   memcpy(buffer, entry->data, entry->size);
   *bytes = entry->size;
+  *bytes+= globalData;
+  printf("Read %lu bytes total\n", *bytes);
 
   free(entry->data);
   entry->data = NULL;
@@ -116,17 +123,23 @@ void flacMetadataCb(const FLAC__StreamDecoder *decoder,
   format->channels = metadata->data.stream_info.channels;
   format->byte_format = AO_FMT_BIG;
 
-  playback->aoInfo.device =
-      ao_open_live(playback->aoInfo.driver, format, NULL);
+  playback->aoInfo.device = ao_open_live(playback->aoInfo.driver, format, NULL);
 }
 
 void *requestDataLoop(struct Playback *playback) {
+  int debug = 0;
   while (1) {
     sem_wait(&playback->produceSemaphore);
-    char *data;
+    char *data = NULL;
     size_t dataSize;
-    playback->feedMeCb(playback->args, &data, dataSize);
+    playback->feedMeCb(playback->args, &data, &dataSize);
+    printf("trying to print data: %s\n", data);
     writeDataToBuffer(playback->circleBuffer, data, dataSize);
     sem_post(&playback->consumeSemaphore);
+    {
+      int val = 0;
+      sem_getvalue(&playback->consumeSemaphore, &val);
+      printf("Semaphore value: %d\n", val);
+    }
   }
 }

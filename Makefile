@@ -9,7 +9,7 @@ SERVER_LIBS := -lpthread -lFLAC
 CLIENT_LIBS := -lFLAC -lao -ldl -lm -lpthread
 CLIENT_SOURCES := src/playback.c src/circle-buffer.c
 SHARED_SOURCES := src/bytes.c src/messages.c
-OPTS := -g -I src/
+OPTS := -g
 
 default: clean server client
 

@@ -2,7 +2,7 @@
 ** how to compile:
 ** gcc ao-flac-streaming.c circle-buffer.c -lFLAC -lao -ldl -lm -lpthread
  */
-#include "circle-buffer.h"
+#include "../circle-buffer.h"
 #include <FLAC/format.h>
 #include <FLAC/ordinals.h>
 #include <FLAC/stream_decoder.h>
@@ -20,6 +20,8 @@
 #include <unistd.h>
 
 #define CIRCLE_BUFFER_SIZE 10
+
+#define CHUNK_SIZE 500
 
 FLAC__StreamDecoderWriteStatus writeCb(const FLAC__StreamDecoder *decoder,
                                        const FLAC__Frame *frame,
@@ -135,9 +137,9 @@ FLAC__StreamDecoderWriteStatus writeCb(const FLAC__StreamDecoder *decoder,
 size_t iteration = 0;
 
 void *feedBuffer() {
-  char buffer[8192];
+  char buffer[CHUNK_SIZE];
   size_t readBytes;
-  while ((readBytes = fread(buffer, sizeof(char), 8192, fd)) != 0) {
+  while ((readBytes = fread(buffer, sizeof(char), CHUNK_SIZE, fd)) != 0) {
     printf("Feeding buffer %lu bytes, iteration: %lu\n", readBytes, iteration);
     int readSemValue, writeSemValue;
     sem_getvalue(&readSemaphore, &readSemValue);
@@ -151,11 +153,6 @@ void *feedBuffer() {
         writeDataToBuffer(circleBuffer, data, readBytes);
     assert(entry != NULL);
     // network latency simulation
-    if (iteration % 50 > 15) {
-      usleep(100 * 1000);
-    } else {
-      usleep(40 * 1000);
-    }
     sem_post(&readSemaphore);
     iteration++;
   }

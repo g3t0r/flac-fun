@@ -76,5 +76,31 @@
     "directory": "/home/jan/Documents/hobby/flac-fun",
     "file": "/home/jan/Documents/hobby/flac-fun/src/messages.c",
     "output": "/home/jan/Documents/hobby/flac-fun/build/client"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-o",
+      "build/client",
+      "src/playback.c"
+    ],
+    "directory": "/home/jan/Documents/hobby/flac-fun",
+    "file": "/home/jan/Documents/hobby/flac-fun/src/playback.c",
+    "output": "/home/jan/Documents/hobby/flac-fun/build/client"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-o",
+      "build/client",
+      "src/circle-buffer.c"
+    ],
+    "directory": "/home/jan/Documents/hobby/flac-fun",
+    "file": "/home/jan/Documents/hobby/flac-fun/src/circle-buffer.c",
+    "output": "/home/jan/Documents/hobby/flac-fun/build/client"
   }
 ]
