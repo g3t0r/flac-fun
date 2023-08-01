@@ -30,6 +30,10 @@ void *requestDataLoop(struct Playback *playback);
 
 int initPlayback(struct Playback *playback) {
 
+  // TODO: initialize semaphores
+  sem_init(&playback->produceSemaphore, 0, CIRCLE_BUFFER_SIZE - 1);
+  sem_init(&playback->consumeSemaphore, 0, 0);
+  playback->circleBuffer = newCircleBuffer(CIRCLE_BUFFER_SIZE);
   playback->aoInfo.driver = ao_default_driver_id();
   playback->decoder = FLAC__stream_decoder_new();
   FLAC__stream_decoder_init_stream(playback->decoder, flacReadCb, NULL, NULL,
@@ -39,7 +43,7 @@ int initPlayback(struct Playback *playback) {
 }
 
 int play(struct Playback *playback) {
-  pthread_create(&playback->requestDataLoopThread, NULL, (void * (*)()) requestDataLoop, playback);
+  pthread_create(&playback->requestDataLoopThread, NULL, (void * (*)()) requestDataLoop, playback->args);
   FLAC__stream_decoder_process_until_end_of_stream(playback->decoder);
   pthread_join(playback->requestDataLoopThread, NULL);
   return 0;
@@ -84,7 +88,8 @@ FLAC__StreamDecoderReadStatus flacReadCb(const FLAC__StreamDecoder *decoder,
                                          void *clientData) {
 
   struct Playback *playback = (struct Playback *)clientData;
-
+  int abc = 0;
+  sem_wait(&playback->consumeSemaphore);
   struct CircleBufferEntry *entry = readEntryFromBuffer(playback->circleBuffer);
   memcpy(buffer, entry->data, entry->size);
   *bytes = entry->size;

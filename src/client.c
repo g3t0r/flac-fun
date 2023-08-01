@@ -2,11 +2,14 @@
 #include "messages.h"
 
 #include "config.h"
+#include "playback.h"
+#include <ao/ao.h>
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,10 +27,16 @@ struct ServerInfo {
 static int initializeSocket();
 static void createServerInfo(struct ServerInfo *dst, const char *ipv4,
                              uint16_t port);
-void requestData()
+struct RequestDataArgs {
+  int socket;
+  struct Playback *playback;
+};
+
+void requestData(struct RequestDataArgs *args, char **data, size_t dataSize);
 
 int main(int argc, char **argv) {
 
+  ao_initialize();
   struct ServerInfo serverInfo;
   serverInfo.socket = initializeSocket();
   createServerInfo(&serverInfo, "127.0.0.1", 8080);
@@ -37,40 +46,10 @@ int main(int argc, char **argv) {
     printf("Problem connecting to server, error %s\n", strerror(errno));
   }
 
-  struct MessageHeader header;
-  header.size = sizeof(struct FeedMeMessage);
-  header.type = FEED_ME;
-  struct FeedMeMessage feedMe;
-  feedMe.dataSize = 500;
-
-  char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
-
-  struct pollfd pfd;
-  pfd.fd = serverInfo.socket;
-  pfd.events = POLLIN;
-
-  int readBytes = 1;
-  while (readBytes != 0) {
-    header.size = sizeof(struct FeedMeMessage);
-    header.type = FEED_ME;
-    uint16_t writtenBytes = serializeMessageHeader(&header, buffer);
-    writtenBytes += serializeFeedMeMessage(&feedMe, buffer + writtenBytes);
-
-    send(serverInfo.socket, buffer, writtenBytes, 0);
-    printf("Message send, waiting for response\n");
-
-    int pollResult = poll(&pfd, 1, 0);
-    if (pollResult == -1) {
-      printf("Poll error: %s\n", strerror(errno));
-    }
-
-    recv(serverInfo.socket, buffer, FFUN_UDP_DGRAM_MAX_SIZE, 0);
-    struct DataMessage message;
-    int readBytes = deserializeMessageHeader(buffer, &header);
-    readBytes += deserializeDataMessage(buffer + readBytes, &message);
-    message.data[message.dataSize - 1] = '\0';
-    printf("Received data: %s\n", message.data);
-  }
+  struct Playback *playback = malloc(sizeof(struct Playback));
+  playback->feedMeCb = (void (*)(void *, char **, size_t)) requestData;
+  initPlayback(playback);
+  play(playback);
 }
 
 static int initializeSocket() {
@@ -110,4 +89,42 @@ static void createServerInfo(struct ServerInfo *dst, const char *ipv4,
   dst->addr.sin_family = AF_INET;
   dst->addr.sin_port = htons(port);
   inet_pton(AF_INET, ipv4, (void *)&dst->addr.sin_addr.s_addr);
+}
+
+void requestData(struct RequestDataArgs *args, char **data, size_t dataSize) {
+  struct MessageHeader header;
+  header.size = sizeof(struct FeedMeMessage);
+  header.type = FEED_ME;
+  struct FeedMeMessage feedMe;
+  feedMe.dataSize = 500;
+
+  char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
+
+  struct pollfd pfd;
+  pfd.fd = args->socket;
+  pfd.events = POLLIN;
+
+  int readBytes = 1;
+  while (readBytes != 0) {
+    header.size = sizeof(struct FeedMeMessage);
+    header.type = FEED_ME;
+    uint16_t writtenBytes = serializeMessageHeader(&header, buffer);
+    writtenBytes += serializeFeedMeMessage(&feedMe, buffer + writtenBytes);
+
+    send(args->socket, buffer, writtenBytes, 0);
+    printf("Message send, waiting for response\n");
+
+    int pollResult = poll(&pfd, 1, 0);
+    if (pollResult == -1) {
+      printf("Poll error: %s\n", strerror(errno));
+    }
+
+    recv(args->socket, buffer, FFUN_UDP_DGRAM_MAX_SIZE, 0);
+    struct DataMessage message;
+    int readBytes = deserializeMessageHeader(buffer, &header);
+    readBytes += deserializeDataMessage(buffer + readBytes, &message);
+    *data = malloc(sizeof(char) * readBytes);
+    memcpy(data, buffer, readBytes);
+    printf("Received data: %s\n", message.data);
+  }
 }

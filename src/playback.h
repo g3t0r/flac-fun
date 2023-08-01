@@ -36,6 +36,8 @@
 #include "circle-buffer.h"
 #include <pthread.h>
 
+#define CIRCLE_BUFFER_SIZE 10
+
 struct AOInfo {
   ao_device * device;
   int driver;
