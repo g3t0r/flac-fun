@@ -6,9 +6,10 @@
 
 CC := gcc
 SERVER_LIBS := -lpthread -lFLAC
-CLIENT_LIBS :=
+CLIENT_LIBS := -lFLAC -lao -ldl -lm -lpthread
+CLIENT_SOURCES := src/playback.c src/circle-buffer.c
 SHARED_SOURCES := src/bytes.c src/messages.c
-OPTS := -g
+OPTS := -g -I src/
 
 default: clean server client
 
@@ -21,7 +22,7 @@ server:
 .PHONY: client
 client:
 	mkdir -p build
-	$(CC) $(OPTS) src/client.c $(SHARED_SOURCES) $(CLIENT_LIBS) -o build/client
+	$(CC) $(OPTS) src/client.c $(SHARED_SOURCES) $(CLIENT_SOURCES) $(CLIENT_LIBS) -o build/client
 
 .PHONY: clean
 clean:
