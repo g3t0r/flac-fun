@@ -1,0 +1,6 @@
+break /home/jan/Documents/Projects/Personal/C/flac-fun/src/server.c:137
+watch (int) errno
+break /home/jan/Documents/Projects/Personal/C/flac-fun/src/server.c:137
+break /home/jan/Documents/Projects/Personal/C/flac-fun/src/server.c:139
+break /home/jan/Documents/Projects/Personal/C/flac-fun/src/server.c:161
+break *0x0000000000401701
