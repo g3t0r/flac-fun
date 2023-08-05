@@ -58,7 +58,7 @@ uint32_t readIntegerFromBuffer(void *dst, const void *const src, uint8_t size) {
 
 uint32_t writeIntegerToBuffer(void *dst, const void *const src, uint8_t size) {
   if (size == sizeof(uint8_t)) {
-    memcpy(dst, src, size);
+    *(char *)dst = *(char *)src;
     return size;
   }
 

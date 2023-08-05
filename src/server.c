@@ -3,6 +3,7 @@
 #include "messages.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
+#include <assert.h>
 #include <bits/pthreadtypes.h>
 #include <errno.h>
 #include <net/if.h>
@@ -24,7 +25,7 @@ static void initializeServer(struct ServerContext *serverContext);
 
 static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct ClientContext *clientContext,
-                               struct MessageHeader * header,
+                               struct MessageHeader *header,
                                struct FeedMeMessage *message);
 
 int main(int argc, char **argv) {
@@ -92,7 +93,7 @@ int main(int argc, char **argv) {
   }
 }
 
-FILE * debugFile;
+FILE *debugFile;
 
 void initializeServer(struct ServerContext *serverContext) {
 
@@ -141,7 +142,8 @@ void *handleClient(struct HandleClientArgs *args) {
     deserializeFeedMeMessage(args->rawMessage + readBytes, message);
     free(args->rawMessage);
     args->rawMessage = NULL;
-    handleFeedMeMessage(args->serverContext, args->clientContext, header, message);
+    handleFeedMeMessage(args->serverContext, args->clientContext, header,
+                        message);
     free(message);
     break;
   }
@@ -154,10 +156,9 @@ void *handleClient(struct HandleClientArgs *args) {
   return 0;
 }
 
-
 static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct ClientContext *clientContext,
-                               struct MessageHeader * receivedHeader,
+                               struct MessageHeader *receivedHeader,
                                struct FeedMeMessage *receivedMessage) {
 
   if (serverContext->openedFile == NULL) {
@@ -166,22 +167,31 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
 
   struct MessageHeader header;
   struct DataMessage dataMessage;
-  dataMessage.dataSize = fread(&dataMessage.data, sizeof(char),
-                               receivedMessage->dataSize, serverContext->openedFile);
+  dataMessage.data = malloc(sizeof(char) * receivedMessage->dataSize);
+  dataMessage.dataSize =
+      fread(dataMessage.data, sizeof(char), receivedMessage->dataSize,
+            serverContext->openedFile);
   header.size = dataMessageGetBytesLength(&dataMessage);
   header.type = DATA;
   header.seq = receivedHeader->seq;
 
   char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
+  assert((char *)&header.type != dataMessage.data + 8);
   uint16_t headerSize = serializeMessageHeader(&header, buffer);
   uint messageSize = serializeDataMessage(&dataMessage, buffer + headerSize);
 
-  int sentBytes = sendto(serverContext->socket, buffer, (headerSize + messageSize), 0,
-                         (const struct sockaddr *)&clientContext->clientAddr,
-                         clientContext->clientAddrSize);
+  int sentBytes =
+      sendto(serverContext->socket, buffer, (headerSize + messageSize), 0,
+             (const struct sockaddr *)&clientContext->clientAddr,
+             clientContext->clientAddrSize);
 
-    fwrite(buffer+headerSize, sizeof(char), messageSize, debugFile);
+  /*
+   * NOTE: We can see that data is being malformed on a server
+   */
+
+  fwrite(buffer + headerSize + sizeof(dataMessage.dataSize), sizeof(char),
+         messageSize, debugFile);
 
   printf("Sent bytes: %d\n", sentBytes);
   if (sentBytes == -1) {

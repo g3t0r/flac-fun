@@ -130,7 +130,7 @@ void requestData(struct RequestDataArgs *args, char **data, size_t * dataSize) {
   int headerSize = deserializeMessageHeader(buffer, &header);
   int messageSize = deserializeDataMessage(buffer + headerSize, &message);
   *data = malloc(sizeof(char) * message.dataSize);
-  memcpy(*data, buffer+headerSize, message.dataSize);
+  memcpy(*data, message.data, message.dataSize);
   *dataSize = message.dataSize;
 
   //printf("Received data: %s\n", message.data);
