@@ -68,7 +68,7 @@ uint32_t serializeDataMessage(const struct DataMessage *const message,
   int writtenBytes = writeIntegerToBuffer(buffer, &message->dataSize,
                                           sizeof(message->dataSize));
 
-  memcpy(buffer + writtenBytes, &message->data, message->dataSize);
+  memcpy(buffer + writtenBytes, message->data, message->dataSize);
   writtenBytes += message->dataSize;
 
   return writtenBytes;
