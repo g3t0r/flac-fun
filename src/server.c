@@ -17,12 +17,14 @@
 #include <string.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 static void initializeServer(struct ServerContext *serverContext);
 
 static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct ClientContext *clientContext,
+                               struct MessageHeader * header,
                                struct FeedMeMessage *message);
 
 int main(int argc, char **argv) {
@@ -90,7 +92,11 @@ int main(int argc, char **argv) {
   }
 }
 
+FILE * debugFile;
+
 void initializeServer(struct ServerContext *serverContext) {
+
+  debugFile = fopen("./audio/server.debug.flac", "wb");
   int sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (sd == -1) {
     printf("Problem creating socket: %s\n", strerror(errno));
@@ -135,7 +141,7 @@ void *handleClient(struct HandleClientArgs *args) {
     deserializeFeedMeMessage(args->rawMessage + readBytes, message);
     free(args->rawMessage);
     args->rawMessage = NULL;
-    handleFeedMeMessage(args->serverContext, args->clientContext, message);
+    handleFeedMeMessage(args->serverContext, args->clientContext, header, message);
     free(message);
     break;
   }
@@ -148,9 +154,11 @@ void *handleClient(struct HandleClientArgs *args) {
   return 0;
 }
 
+
 static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct ClientContext *clientContext,
-                               struct FeedMeMessage *message) {
+                               struct MessageHeader * receivedHeader,
+                               struct FeedMeMessage *receivedMessage) {
 
   if (serverContext->openedFile == NULL) {
     serverContext->openedFile = fopen("./audio/1.flac", "rb");
@@ -159,18 +167,21 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
   struct MessageHeader header;
   struct DataMessage dataMessage;
   dataMessage.dataSize = fread(&dataMessage.data, sizeof(char),
-                               message->dataSize, serverContext->openedFile);
+                               receivedMessage->dataSize, serverContext->openedFile);
   header.size = dataMessageGetBytesLength(&dataMessage);
   header.type = DATA;
+  header.seq = receivedHeader->seq;
 
   char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
-  uint16_t writtenBytes = serializeMessageHeader(&header, buffer);
-  writtenBytes += serializeDataMessage(&dataMessage, buffer + writtenBytes);
+  uint16_t headerSize = serializeMessageHeader(&header, buffer);
+  uint messageSize = serializeDataMessage(&dataMessage, buffer + headerSize);
 
-  int sentBytes = sendto(serverContext->socket, buffer, writtenBytes, 0,
+  int sentBytes = sendto(serverContext->socket, buffer, (headerSize + messageSize), 0,
                          (const struct sockaddr *)&clientContext->clientAddr,
                          clientContext->clientAddrSize);
+
+    fwrite(buffer+headerSize, sizeof(char), messageSize, debugFile);
 
   printf("Sent bytes: %d\n", sentBytes);
   if (sentBytes == -1) {

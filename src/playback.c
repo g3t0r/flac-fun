@@ -98,7 +98,7 @@ FLAC__StreamDecoderReadStatus flacReadCb(const FLAC__StreamDecoder *decoder,
   struct CircleBufferEntry *entry = readEntryFromBuffer(playback->circleBuffer);
   memcpy(buffer, entry->data, entry->size);
   *bytes = entry->size;
-  *bytes+= globalData;
+  *bytes += globalData;
   printf("Read %lu bytes total\n", *bytes);
 
   free(entry->data);
@@ -128,11 +128,14 @@ void flacMetadataCb(const FLAC__StreamDecoder *decoder,
 
 void *requestDataLoop(struct Playback *playback) {
   int debug = 0;
+  FILE * debugFile = fopen("./audio/output.debug.flac", "wb");
+  printf("File error: %s\n", strerror(errno));
   while (1) {
     sem_wait(&playback->produceSemaphore);
     char *data = NULL;
     size_t dataSize;
     playback->feedMeCb(playback->args, &data, &dataSize);
+    fwrite(data, sizeof(char), dataSize, debugFile);
     printf("trying to print data: %s\n", data);
     writeDataToBuffer(playback->circleBuffer, data, dataSize);
     sem_post(&playback->consumeSemaphore);

@@ -23,6 +23,9 @@ uint32_t serializeMessageHeader(const struct MessageHeader *const header,
   writtenBytes += writeIntegerToBuffer(buffer + writtenBytes, &header->size,
                                        sizeof(header->size));
 
+  writtenBytes += writeIntegerToBuffer(buffer + writtenBytes, &header->seq,
+                                       sizeof(header->seq));
+
   return writtenBytes;
 }
 
@@ -43,6 +46,8 @@ uint32_t deserializeMessageHeader(const char *const buffer,
 
   readBytes += readIntegerFromBuffer(&header->size, buffer + readBytes,
                                      sizeof(header->size));
+  readBytes += readIntegerFromBuffer(&header->seq, buffer + readBytes,
+                                     sizeof(header->seq));
 
   return readBytes;
 }

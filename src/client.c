@@ -95,12 +95,15 @@ static void createServerInfo(struct ServerInfo *dst, const char *ipv4,
   inet_pton(AF_INET, ipv4, (void *)&dst->addr.sin_addr.s_addr);
 }
 
+int global_datagram_seq = 0;
+
 void requestData(struct RequestDataArgs *args, char **data, size_t * dataSize) {
   struct MessageHeader header;
   header.size = sizeof(struct FeedMeMessage);
   header.type = FEED_ME;
+  header.seq = global_datagram_seq++;
   struct FeedMeMessage feedMe;
-  feedMe.dataSize = 500;
+  feedMe.dataSize = 450;
 
   char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
@@ -111,6 +114,7 @@ void requestData(struct RequestDataArgs *args, char **data, size_t * dataSize) {
   header.size = sizeof(struct FeedMeMessage);
   header.type = FEED_ME;
   uint16_t writtenBytes = serializeMessageHeader(&header, buffer);
+  printf("Seq: %u\n", header.seq);
   writtenBytes += serializeFeedMeMessage(&feedMe, buffer + writtenBytes);
 
   send(args->socket, buffer, writtenBytes, 0);
@@ -123,10 +127,11 @@ void requestData(struct RequestDataArgs *args, char **data, size_t * dataSize) {
 
   recv(args->socket, buffer, FFUN_UDP_DGRAM_MAX_SIZE, 0);
   struct DataMessage message;
-  int readBytes = deserializeMessageHeader(buffer, &header);
-  readBytes += deserializeDataMessage(buffer + readBytes, &message);
-  *data = malloc(sizeof(char) * readBytes);
-  memcpy(*data, buffer, readBytes);
-  *dataSize = readBytes;
+  int headerSize = deserializeMessageHeader(buffer, &header);
+  int messageSize = deserializeDataMessage(buffer + headerSize, &message);
+  *data = malloc(sizeof(char) * message.dataSize);
+  memcpy(*data, buffer+headerSize, message.dataSize);
+  *dataSize = message.dataSize;
+
   //printf("Received data: %s\n", message.data);
 }

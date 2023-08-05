@@ -1,6 +1,7 @@
 #ifndef SIMPLE_MESSAGES_H_
 #define SIMPLE_MESSAGES_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #define MSG_HEADER_SIZE 5
@@ -11,6 +12,7 @@ enum MessageType { HEARTBEAT, DATA, FEED_ME };
 struct MessageHeader {
   uint8_t type;
   uint16_t size;
+  uint32_t seq;
 };
 
 struct Message {};
