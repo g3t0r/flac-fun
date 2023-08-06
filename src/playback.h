@@ -36,7 +36,7 @@
 #include "circle-buffer.h"
 #include <pthread.h>
 
-#define CIRCLE_BUFFER_SIZE 100
+#define CIRCLE_BUFFER_SIZE 10
 
 struct AOInfo {
   ao_device * device;
@@ -48,6 +48,7 @@ struct AOInfo {
 struct Playback {
   sem_t produceSemaphore;
   sem_t consumeSemaphore;
+  sem_t semManipulation;
   struct CircleBuffer * circleBuffer;
   void (*feedMeCb)(void * args, char ** data, size_t * dataSize);
   void * args;

@@ -114,7 +114,7 @@ void requestData(struct RequestDataArgs *args, char **data, size_t * dataSize) {
   header.size = sizeof(struct FeedMeMessage);
   header.type = FEED_ME;
   uint16_t writtenBytes = serializeMessageHeader(&header, buffer);
-  printf("Seq: %u\n", header.seq);
+  //printf("Seq: %u\n", header.seq);
   writtenBytes += serializeFeedMeMessage(&feedMe, buffer + writtenBytes);
 
   send(args->socket, buffer, writtenBytes, 0);
