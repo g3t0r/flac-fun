@@ -63,7 +63,7 @@ FLAC__StreamDecoderWriteStatus flacWriteCb(const FLAC__StreamDecoder *decoder,
   struct Playback *playback = (struct Playback *)clientData;
   printf("Hello from writeCb\n");
   ao_sample_format *format = &playback->aoInfo.format;
-  uint32_t blockSize = playback->aoInfo.blocksize;
+  uint32_t blockSize = frame->header.blocksize;
   uint32_t bytesPerSample = format->bits / 8;
   uint32_t numberOfChannels = format->channels;
   uint32_t bufferSize = blockSize * bytesPerSample * numberOfChannels;
@@ -72,15 +72,19 @@ FLAC__StreamDecoderWriteStatus flacWriteCb(const FLAC__StreamDecoder *decoder,
   char *tmpBuffer = calloc(bufferSize, sizeof(char));
   assert(tmpBuffer != NULL);
 
+
   for (int i = 0; i < blockSize; i++) {
     for (int channel = 0; channel < numberOfChannels; channel++) {
 
       int channelOffset =
           i * bytesPerSample * numberOfChannels + bytesPerSample * channel;
 
-      if(buffer[channel] != NULL) {
+      if(buffer[channel] == NULL) {
         int dbg = 0;
       }
+      assert(buffer[channel] != NULL);
+      int valueFromBuffer1 = *(*(buffer+channel) + i);
+      int valueFromBuffer2 = buffer[channel][i];
       tmpBuffer[channelOffset] = (int8_t)(buffer[channel][i] >> 16) & byteMask;
       tmpBuffer[channelOffset + 1] =
           (int8_t)(buffer[channel][i] >> 8) & byteMask;
@@ -108,7 +112,7 @@ FLAC__StreamDecoderReadStatus flacReadCb(const FLAC__StreamDecoder *decoder,
   printf("flacReadCb: waiting for consume semaphore\n");
   // NOTE: Could it be a deadlock?
   sem_wait(&playback->consumeSemaphore);
-  sem_wait(&playback->semManipulation);
+  //sem_wait(&playback->semManipulation);
   printf("Reading from circle buffer\n");
   struct CircleBufferEntry *entry = readEntryFromBuffer(playback->circleBuffer);
   memcpy(buffer, entry->data, entry->size);
@@ -120,7 +124,7 @@ FLAC__StreamDecoderReadStatus flacReadCb(const FLAC__StreamDecoder *decoder,
   entry->data = NULL;
   entry->size = 0;
 
-  sem_post(&playback->semManipulation);
+  //sem_post(&playback->semManipulation);
   printf("flacReadCb: posting produce semaphore\n");
   sem_post(&playback->produceSemaphore);
 
@@ -150,14 +154,14 @@ void *requestDataLoop(struct Playback *playback) {
   while (1) {
     printf("requestDataLoop: waiting for produceSemaphore\n");
     sem_wait(&playback->produceSemaphore);
-    sem_wait(&playback->semManipulation);
+    //sem_wait(&playback->semManipulation);
     char *data = NULL;
     size_t dataSize;
     playback->feedMeCb(playback->args, &data, &dataSize);
     fwrite(data, sizeof(char), dataSize, debugFile);
     writeDataToBuffer(playback->circleBuffer, data, dataSize);
     printf("requestDataLoop: posting for consumeSemaphore\n");
-    sem_post(&playback->semManipulation);
+    //sem_post(&playback->semManipulation);
     sem_post(&playback->consumeSemaphore);
     {
       int val = 0;
