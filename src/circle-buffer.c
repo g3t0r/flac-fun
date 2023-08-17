@@ -6,6 +6,7 @@ struct CircleBuffer *newCircleBuffer(size_t capacity) {
   buffer->capacity = capacity;
   buffer->head = 0;
   buffer->tail = 0;
+  buffer->currentSize = 0;
   buffer->entries = malloc(sizeof(*buffer->entries) * capacity);
   return buffer;
 }
@@ -27,6 +28,7 @@ struct CircleBufferEntry *readEntryFromBuffer(struct CircleBuffer *buffer) {
   }
   struct CircleBufferEntry *toReturn = buffer->entries + buffer->tail;
   buffer->tail = (buffer->tail + 1) % buffer->capacity;
+  buffer->currentSize--;
   return toReturn;
 }
 
@@ -40,5 +42,6 @@ struct CircleBufferEntry *writeDataToBuffer(struct CircleBuffer *buffer,
   (buffer->entries + buffer->head)->data = data;
 
   buffer->head = (buffer->head + 1) % buffer->capacity;
+  buffer->currentSize++;
   return (buffer->entries + buffer->head);
 }

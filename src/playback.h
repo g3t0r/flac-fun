@@ -27,38 +27,43 @@
  *
  * */
 
+#include "circle-buffer.h"
 #include <FLAC/stream_decoder.h>
 #include <ao/ao.h>
 #include <ao/os_types.h>
 #include <bits/pthreadtypes.h>
+#include <pthread.h>
 #include <semaphore.h>
 #include <stdint.h>
-#include "circle-buffer.h"
-#include <pthread.h>
 
-#define CIRCLE_BUFFER_SIZE 10
+#define FLAC_DATA_BUFFER_SIZE 10
+#define RAW_DATA_BUFFER_SIZE 5
 
 struct AOInfo {
-  ao_device * device;
+  ao_device *device;
   int driver;
   ao_sample_format format;
   uint32_t blocksize;
 };
 
 struct Playback {
-  sem_t produceSemaphore;
-  sem_t consumeSemaphore;
-  sem_t semManipulation;
-  struct CircleBuffer * circleBuffer;
-  void (*feedMeCb)(void * args, char ** data, size_t * dataSize);
-  void * args;
-  pthread_t requestDataLoopThread;
-  FLAC__StreamDecoder * decoder;
+  struct Semaphores {
+    sem_t flacData;
+    sem_t pushFlacData;
+    sem_t pullFlacData;
+    sem_t rawData;
+    sem_t pushRawData;
+    sem_t pullRawData;
+  } semaphores;
+  struct CircleBuffer *flacDataBuffer;
+  struct CircleBuffer *rawDataBuffer;
   struct AOInfo aoInfo;
-
+  void (*feedMeCb)(void *args, char **data, size_t *dataSize);
+  void *args;
+  FLAC__StreamDecoder *decoder;
 };
 
-int initPlayback(struct Playback * playback);
-int play(struct Playback * playback);
+int initPlayback(struct Playback *playback);
+int play(struct Playback *playback);
 
 #endif
