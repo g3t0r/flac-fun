@@ -19,12 +19,12 @@ static int semVal(sem_t *sem) {
 }
 
 #define dbg_sem_wait(sem)                                                      \
-  printf("Called sem_wait: %s:%d, value: %d\n", __FILE__, __LINE__,            \
+  printf("\tCalled sem_wait: %s:%d, value: %d\n", __FILE__, __LINE__,            \
          semVal(sem));                                                         \
   sem_wait(sem)
 
 #define dbg_sem_post(sem)                                                      \
-  printf("Called sem_post: %s:%d, value: %d\n", __FILE__, __LINE__,            \
+  printf("\tCalled sem_post: %s:%d, value: %d\n", __FILE__, __LINE__,            \
          semVal(sem));                                                         \
   sem_post(sem)
 
@@ -57,7 +57,7 @@ int initPlayback(struct Playback *playback) {
   sem_init(&playback->semaphores.pushFlacData, 0, FLAC_DATA_BUFFER_SIZE);
   sem_init(&playback->semaphores.pullFlacData, 0, 0);
   sem_init(&playback->semaphores.rawData, 0, 1);
-  sem_init(&playback->semaphores.pushRawData, 0, 0);
+  sem_init(&playback->semaphores.pushRawData, 0, FLAC_DATA_BUFFER_SIZE);
   sem_init(&playback->semaphores.pullRawData, 0, 0);
 
   playback->flacDataBuffer = newCircleBuffer(FLAC_DATA_BUFFER_SIZE + 1);
@@ -99,6 +99,7 @@ FLAC__StreamDecoderWriteStatus flacWriteCb(const FLAC__StreamDecoder *decoder,
   uint32_t bufferSize = blockSize * bytesPerSample * numberOfChannels;
   uint32_t byteMask = 0xFF;
 
+
   char *tmpBuffer = calloc(bufferSize, sizeof(char));
   assert(tmpBuffer != NULL);
 
@@ -121,10 +122,14 @@ FLAC__StreamDecoderWriteStatus flacWriteCb(const FLAC__StreamDecoder *decoder,
     }
   }
 
+  printf("Write waiting\n");
+  dbg_sem_wait(&playback->semaphores.pushRawData);
+  dbg_sem_wait(&playback->semaphores.rawData);
+  printf("flacWriteCb\n");
   writeDataToBuffer(playback->rawDataBuffer, tmpBuffer, bufferSize);
+  dbg_sem_post(&playback->semaphores.rawData);
+  dbg_sem_post(&playback->semaphores.pullRawData);
 
-  // sem_wait(&playback->semaphores.rawData);
-  sem_wait(&playback->semaphores.pushRawData);
 
   return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
@@ -135,9 +140,11 @@ FLAC__StreamDecoderReadStatus flacReadCb(const FLAC__StreamDecoder *decoder,
 
   struct Playback *playback = (struct Playback *)clientData;
 
-  // sem_wait(&playback->semaphores.flacData);
-  dbg_sem_wait(&playback->semaphores.pullFlacData); // BUG: deadlock
+  printf("waiting for read\n");
+  sem_wait(&playback->semaphores.pullFlacData);
+  sem_wait(&playback->semaphores.flacData);
 
+  printf("flacReadCb\n");
   struct CircleBufferEntry *entry =
       readEntryFromBuffer(playback->flacDataBuffer);
   assert(entry != NULL);
@@ -148,8 +155,8 @@ FLAC__StreamDecoderReadStatus flacReadCb(const FLAC__StreamDecoder *decoder,
   entry->data = NULL;
   entry->size = 0;
 
-  // sem_post(&playback->semaphores.flacData);
-  dbg_sem_post(&playback->semaphores.pushFlacData);
+  sem_post(&playback->semaphores.flacData);
+  sem_post(&playback->semaphores.pushFlacData);
 
   if (*bytes == 0)
     return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
@@ -178,13 +185,13 @@ void *dataStreamFn(struct Playback *playback) {
     printf("Requesting flac data\n");
     playback->feedMeCb(playback->args, &data, &dataSize);
 
-    // sem_wait(&playback->semaphores.flacData);
     sem_wait(&playback->semaphores.pushFlacData);
+    sem_wait(&playback->semaphores.flacData);
 
     printf("Pushing flac data\n");
     writeDataToBuffer(playback->flacDataBuffer, data, dataSize);
 
-    // sem_post(&playback->semaphores.flacData);
+    sem_post(&playback->semaphores.flacData);
     sem_post(&playback->semaphores.pullFlacData);
   }
 }
@@ -193,8 +200,8 @@ void *audioPlaybackFn(struct Playback *playback) {
 
   printf("Starting audio playback loop\n");
   while (1) {
-    // sem_wait(&playback->semaphores.rawData);
     sem_wait(&playback->semaphores.pullRawData);
+    sem_wait(&playback->semaphores.rawData);
 
     struct CircleBufferEntry *entry =
         readEntryFromBuffer(playback->rawDataBuffer);
@@ -204,7 +211,7 @@ void *audioPlaybackFn(struct Playback *playback) {
     printf("Playing\n");
     ao_play(playback->aoInfo.device, entry->data, entry->size);
 
-    // sem_post(&playback->semaphores.rawData);
+    sem_post(&playback->semaphores.rawData);
     sem_post(&playback->semaphores.pushRawData);
   }
 
