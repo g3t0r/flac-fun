@@ -1,4 +1,5 @@
 #include "circle-buffer.h"
+#include <assert.h>
 #include <stdlib.h>
 
 struct CircleBuffer *newCircleBuffer(size_t capacity) {
@@ -34,6 +35,8 @@ struct CircleBufferEntry *readEntryFromBuffer(struct CircleBuffer *buffer) {
 
 struct CircleBufferEntry *writeDataToBuffer(struct CircleBuffer *buffer,
                                             void *data, size_t size) {
+  assert(buffer != NULL);
+  assert(data != NULL);
   if ((buffer->head + 1) % buffer->capacity == buffer->tail) {
     return NULL;
   }
