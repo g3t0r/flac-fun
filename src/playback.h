@@ -36,7 +36,7 @@
 #include <semaphore.h>
 #include <stdint.h>
 
-#define FLAC_DATA_BUFFER_SIZE 10
+#define FLAC_DATA_BUFFER_SIZE 1000
 #define RAW_DATA_BUFFER_SIZE 5
 
 struct AOInfo {
@@ -52,6 +52,7 @@ struct Playback {
     sem_t pushFlacData;
     sem_t pullFlacData;
     sem_t rawData;
+    sem_t rawDataDelay;
     sem_t pushRawData;
     sem_t pullRawData;
   } semaphores;

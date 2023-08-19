@@ -165,33 +165,41 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
     serverContext->openedFile = fopen("./audio/1.flac", "rb");
   }
 
+  // latency simulation
+  usleep(10 * 1000);
+
   struct MessageHeader header;
   struct DataMessage dataMessage;
-  dataMessage.data = malloc(sizeof(char) * receivedMessage->dataSize);
-  dataMessage.dataSize =
-      fread(dataMessage.data, sizeof(char), receivedMessage->dataSize,
-            serverContext->openedFile);
-  header.size = dataMessageGetBytesLength(&dataMessage);
-  header.type = DATA;
-  header.seq = receivedHeader->seq;
 
-  char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
+  int sentBytes = 0;
+  for (int i = 0; i < 5; i++) {
 
-  assert((char *)&header.type != dataMessage.data + 8);
-  uint16_t headerSize = serializeMessageHeader(&header, buffer);
-  uint messageSize = serializeDataMessage(&dataMessage, buffer + headerSize);
+    dataMessage.data = malloc(sizeof(char) * receivedMessage->dataSize);
+    dataMessage.dataSize =
+        fread(dataMessage.data, sizeof(char), receivedMessage->dataSize,
+              serverContext->openedFile);
+    header.size = dataMessageGetBytesLength(&dataMessage);
+    header.type = DATA;
+    header.seq = receivedHeader->seq;
 
-  int sentBytes =
-      sendto(serverContext->socket, buffer, (headerSize + messageSize), 0,
-             (const struct sockaddr *)&clientContext->clientAddr,
-             clientContext->clientAddrSize);
+    char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
-  /*
-   * NOTE: We can see that data is being malformed on a server
-   */
+    assert((char *)&header.type != dataMessage.data + 8);
+    uint16_t headerSize = serializeMessageHeader(&header, buffer);
+    uint messageSize = serializeDataMessage(&dataMessage, buffer + headerSize);
+    free(dataMessage.data);
 
-  fwrite(buffer + headerSize + sizeof(dataMessage.dataSize), sizeof(char),
-         messageSize, debugFile);
+    sentBytes +=
+        sendto(serverContext->socket, buffer, (headerSize + messageSize), 0,
+               (const struct sockaddr *)&clientContext->clientAddr,
+               clientContext->clientAddrSize);
+
+    /*
+     * NOTE: We can see that data is being malformed on a server
+     */
+    fwrite(buffer + headerSize + sizeof(dataMessage.dataSize), sizeof(char),
+           messageSize, debugFile);
+  }
 
   printf("Sent bytes: %d\n", sentBytes);
   if (sentBytes == -1) {

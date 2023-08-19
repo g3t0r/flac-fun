@@ -39,7 +39,8 @@ int main(int argc, char **argv) {
   ao_initialize();
   struct ServerInfo serverInfo;
   serverInfo.socket = initializeSocket();
-  createServerInfo(&serverInfo, "127.0.0.1", 8080);
+  //createServerInfo(&serverInfo, "192.168.0.175", 8080);
+  createServerInfo(&serverInfo, "0.0.0.0", 8080);
 
   if (connect(serverInfo.socket, (struct sockaddr *)&serverInfo.addr,
               serverInfo.addrLen) != 0) {
