@@ -15,3 +15,6 @@ Handful approach
 - Request new series of data message, send series number to the library server
 - In handleDataMessageFn: if series number differs from previous and buffer is
   able to store new message, then request new series of data
+
+Bugs:
+- server sends header before every dataMessage, client expects single header
