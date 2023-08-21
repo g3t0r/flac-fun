@@ -4,6 +4,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct ByteArray {
+  size_t size;
+  char buffer[];
+};
+
 /**
  * Function reads integer of certain SIZE from SRC to DST
  * Reason for this method is to abstract away endianess conversion

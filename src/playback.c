@@ -201,15 +201,6 @@ void *dataStreamFn(struct Playback *playback) {
   while (1) {
     //printf("Requesting flac data\n");
     playback->feedMeCb(playback->args, &data, &dataSize);
-
-    sem_wait(&playback->semaphores.pushFlacData);
-    sem_wait(&playback->semaphores.flacData);
-
-    //printf("Pushing flac data\n");
-    writeDataToBuffer(playback->flacDataBuffer, data, dataSize);
-
-    sem_post(&playback->semaphores.flacData);
-    dbg_sem_post(&playback->semaphores.pullFlacData);
   }
 }
 
@@ -226,6 +217,8 @@ void *audioPlaybackFn(struct Playback *playback) {
         readEntryFromBuffer(playback->rawDataBuffer);
 
     assert(entry != NULL);
+    assert(entry->size != 0);
+
 
     sem_post(&playback->semaphores.rawData);
     sem_post(&playback->semaphores.pushRawData);
