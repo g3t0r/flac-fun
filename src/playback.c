@@ -243,6 +243,9 @@ void *dataStreamFunc(struct Playback *playback) {
     size_t offset = serializeMessageHeader(&header, udpDataBuffer);
     offset += serializeFeedMeMessage(&feedMeMessage, udpDataBuffer + offset);
 
+    char memBackup[FFUN_UDP_DGRAM_MAX_SIZE];
+    memcpy(memBackup, udpDataBuffer, FFUN_UDP_DGRAM_MAX_SIZE);
+
     int totalDataSize = 0;
     printDebug("Sending FeedMe\n");
     send(playback->socket, udpDataBuffer, offset, 0);
@@ -261,9 +264,8 @@ void *dataStreamFunc(struct Playback *playback) {
         break;
       }
 
-      memset(udpDataBuffer, 1, FFUN_UDP_DGRAM_MAX_SIZE);
 
-      size_t r = recv(playback->socket, udpDataBuffer, offset, 0);
+      size_t r = recv(playback->socket, udpDataBuffer, FFUN_UDP_DGRAM_MAX_SIZE, 0);
       assert(r != 9); // ?????? why is it 9
       fwrite(udpDataBuffer, sizeof(char), r, udpDebugFile);
       offset = deserializeMessageHeader(udpDataBuffer, &header);
