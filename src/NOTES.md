@@ -18,3 +18,12 @@ Handful approach
 
 Bugs:
 - server sends header before every dataMessage, client expects single header
+
+# 24-08-2023 Handful approach:
+
+New idea for change on client level:
+- Use circle circle buffer with element with size of X UDP packages
+- Request X packages, each with order number
+- Return messages with order number (server part)
+- Place each message in buffer in correct place
+- Push whole buffer
