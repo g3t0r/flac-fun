@@ -172,7 +172,7 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
   struct DataMessage dataMessage;
 
   int sentBytes = 0;
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < receivedHeader->seq; i++) {
 
     dataMessage.data = malloc(sizeof(char) * receivedMessage->dataSize);
     dataMessage.dataSize =
@@ -180,7 +180,7 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
               serverContext->openedFile);
     header.size = dataMessageGetBytesLength(&dataMessage);
     header.type = DATA;
-    header.seq = receivedHeader->seq;
+    header.seq = i;
 
     char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
@@ -189,10 +189,11 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
     uint messageSize = serializeDataMessage(&dataMessage, buffer + headerSize);
     free(dataMessage.data);
 
-    sentBytes +=
+    int currentSend =
         sendto(serverContext->socket, buffer, (headerSize + messageSize), 0,
                (const struct sockaddr *)&clientContext->clientAddr,
                clientContext->clientAddrSize);
+    sentBytes += currentSend;
 
     /*
      * NOTE: We can see that data is being malformed on a server

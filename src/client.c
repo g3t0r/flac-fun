@@ -37,16 +37,6 @@ struct RequestDataArgs {
   struct Playback *playback;
 };
 
-void requestData(struct RequestDataArgs *args, char **data, size_t *dataSize);
-
-struct DataListenerArgs {
-  int socket;
-  struct CircleBuffer *flacDataCircleBuffer;
-  sem_t * bufferMutex;
-  sem_t * bufferRead;
-  sem_t * bufferWrite;
-};
-
 struct HandleDataMessageArgs {
   struct CircleBuffer *flacDataCircleBuffer;
   sem_t * bufferMutex;
@@ -82,41 +72,9 @@ void *handleDataMessageFn(struct HandleDataMessageArgs *args) {
   return NULL;
 }
 
-void *dataListenerFn(struct DataListenerArgs *args) {
-  int socket;
-
-  struct pollfd pfd;
-  pfd.fd = args->socket;
-  pfd.events = POLLIN;
-
-  while (1) {
-
-    struct HandleDataMessageArgs *handleDataArgs =
-        malloc(sizeof(struct CirlceBuffer *) + sizeof(size_t) +
-               sizeof(char) * FFUN_UDP_DGRAM_MAX_SIZE);
-
-    int pollResult = poll(&pfd, 1, 0);
-    if (pollResult == -1) {
-      printf("Poll error: %s\n", strerror(errno));
-    }
-
-    int receivedBytes = recv(pfd.fd, handleDataArgs->byteArray.buffer,
-                             FFUN_UDP_DGRAM_MAX_SIZE * sizeof(char), 0);
-
-    pthread_t * t = malloc(sizeof(pthread_t));
-    handleDataArgs->flacDataCircleBuffer = args->flacDataCircleBuffer;
-    handleDataArgs->byteArray.size = receivedBytes;
-    handleDataArgs->bufferRead = args->bufferRead;
-    handleDataArgs->bufferWrite = args->bufferWrite;
-    handleDataArgs->bufferMutex = args->bufferMutex;
-    pthread_create(t, NULL, (void *(*)())handleDataMessageFn,
-                   handleDataArgs);
-  }
-}
-
 int main(int argc, char **argv) {
 
-  ao_initialize();
+  // begin server init
   struct ServerInfo serverInfo;
   serverInfo.socket = initializeSocket();
   // createServerInfo(&serverInfo, "192.168.0.175", 8080);
@@ -127,26 +85,12 @@ int main(int argc, char **argv) {
     printf("Problem connecting to server, error %s\n", strerror(errno));
   }
 
+  // begin playback init
   struct Playback *playback = malloc(sizeof(struct Playback));
-  struct RequestDataArgs requestDataArgs;
-  requestDataArgs.socket = serverInfo.socket;
-  requestDataArgs.playback = playback;
-  playback->feedMeCb = (void (*)(void *, char **, size_t *))requestData;
-  playback->args = &requestDataArgs;
+  playback->socket = serverInfo.socket;
   initPlayback(playback);
 
-  struct DataListenerArgs * dataListenerArgs =
-    malloc(sizeof(struct DataListenerArgs));
-
-  dataListenerArgs->socket = serverInfo.socket;
-  dataListenerArgs->flacDataCircleBuffer = playback->flacDataBuffer;
-  dataListenerArgs->bufferMutex = &playback->semaphores.flacData;
-  dataListenerArgs->bufferRead = &playback->semaphores.pullFlacData;
-  dataListenerArgs->bufferWrite = &playback->semaphores.pushFlacData;
-  pthread_t t;
-  pthread_create(&t, NULL, (void * (*)()) dataListenerFn, dataListenerArgs);
-
-  play(playback);
+  startPlayback(playback);
 }
 
 static int initializeSocket() {
@@ -189,26 +133,3 @@ static void createServerInfo(struct ServerInfo *dst, const char *ipv4,
 }
 
 int global_datagram_seq = 0;
-
-void requestData(struct RequestDataArgs *args, char **data, size_t *dataSize) {
-  struct MessageHeader header;
-  header.size = sizeof(struct FeedMeMessage);
-  header.type = FEED_ME;
-  header.seq = global_datagram_seq++;
-  struct FeedMeMessage feedMe;
-  feedMe.dataSize = 450;
-
-  char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
-
-  struct pollfd pfd;
-  pfd.fd = args->socket;
-  pfd.events = POLLIN;
-
-  header.size = sizeof(struct FeedMeMessage);
-  header.type = FEED_ME;
-  uint16_t writtenBytes = serializeMessageHeader(&header, buffer);
-  // printf("Seq: %u\n", header.seq);
-  writtenBytes += serializeFeedMeMessage(&feedMe, buffer + writtenBytes);
-
-  send(args->socket, buffer, writtenBytes, 0);
-}

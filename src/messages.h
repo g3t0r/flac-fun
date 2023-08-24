@@ -10,9 +10,9 @@
 enum MessageType { HEARTBEAT, DATA, FEED_ME };
 
 struct MessageHeader {
-  uint8_t type;
-  uint16_t size;
   uint32_t seq;
+  uint16_t size;
+  uint8_t type;
 };
 
 struct Message {};

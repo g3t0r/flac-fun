@@ -62,9 +62,10 @@ struct Playback {
   void (*feedMeCb)(void *args, char **data, size_t *dataSize);
   void *args;
   FLAC__StreamDecoder *decoder;
+  int socket;
 };
 
 int initPlayback(struct Playback *playback);
-int play(struct Playback *playback);
+int startPlayback(struct Playback *playback);
 
 #endif
