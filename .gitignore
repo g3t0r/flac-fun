@@ -1,3 +1,6 @@
 .cache
 build
 audio
+core_client.*
+*.breakpoints
+compile_commands.json

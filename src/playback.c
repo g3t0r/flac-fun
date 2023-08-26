@@ -63,18 +63,14 @@ int initPlayback(struct Playback *playback) {
   // TODO: initialize semaphores
   ao_initialize();
   sem_init(&playback->semaphores.flacData, 0, 1);
-  sem_init(&playback->semaphores.pushFlacData, 0, FLAC_DATA_BUFFER_SIZE);
+  sem_init(&playback->semaphores.pushFlacData, 0, FFUN_FLAC_DATA_BUFF_CAPACITY);
   sem_init(&playback->semaphores.pullFlacData, 0, 0);
   sem_init(&playback->semaphores.rawData, 0, 1);
-  sem_init(&playback->semaphores.rawDataDelay, 0, 0);
-  sem_init(&playback->semaphores.pushRawData, 0, FLAC_DATA_BUFFER_SIZE);
+  sem_init(&playback->semaphores.pushRawData, 0, FFUN_FLAC_DATA_BUFF_CAPACITY);
   sem_init(&playback->semaphores.pullRawData, 0, 0);
 
   playback->flacDataBuffer = newCircleBuffer(FFUN_FLAC_DATA_BUFF_CAPACITY + 1,
                                              FFUN_FLAC_DATA_BUFF_ELEMENT_SIZE);
-
-  /* TODO: initialize it from metadata blocksize*/
-  playback->rawDataBuffer = newCircleBuffer(FLAC_DATA_BUFFER_SIZE + 1, 0);
 
   pthread_t dataStreamTid;
   pthread_create(&dataStreamTid, NULL, (void  * (*)(void *)) dataStreamFunc, playback);
@@ -87,11 +83,7 @@ int initPlayback(struct Playback *playback) {
   return 0;
 }
 
-FILE * debugFile;
-
 int startPlayback(struct Playback *playback) {
-
-  debugFile = fopen("./audio/client.debug.flac", "wb");
 
   pthread_t audioPlaybackThread;
 
@@ -119,6 +111,7 @@ FLAC__StreamDecoderWriteStatus flacWriteCb(const FLAC__StreamDecoder *decoder,
   uint32_t bufferSize = blockSize * bytesPerSample * numberOfChannels;
   uint32_t byteMask = 0xFF;
 
+  printDebug("Hello from flacWriteCb");
   char *tmpBuffer = calloc(bufferSize, sizeof(char));
   assert(tmpBuffer != NULL);
 
@@ -141,17 +134,13 @@ FLAC__StreamDecoderWriteStatus flacWriteCb(const FLAC__StreamDecoder *decoder,
     }
   }
 
-  sem_wait(&playback->semaphores.pushRawData);
+  dbg_sem_wait(&playback->semaphores.pushRawData);
   sem_wait(&playback->semaphores.rawData);
 
   writeDataToBuffer(playback->rawDataBuffer, tmpBuffer, bufferSize);
   globalRawDataEntries++;
   sem_post(&playback->semaphores.rawData);
   sem_post(&playback->semaphores.pullRawData);
-
-  if (globalRawDataEntries == 50) {
-    sem_post(&playback->semaphores.rawDataDelay);
-  }
 
   return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
@@ -162,20 +151,16 @@ FLAC__StreamDecoderReadStatus flacReadCb(const FLAC__StreamDecoder *decoder,
 
   struct Playback *playback = (struct Playback *)clientData;
 
-  // printf("waiting for read\n");
-  // printf("FlacDataPull: %d\n", semVal(&playback->semaphores.pullFlacData));
-  printf("FlacDataBufferCurrentSize: %lu\n",
-         playback->flacDataBuffer->currentSize);
   sem_wait(&playback->semaphores.pullFlacData);
   sem_wait(&playback->semaphores.flacData);
 
-  // printf("flacReadCb\n");
   const struct CircleBufferEntry *entry =
       readEntryFromBuffer(playback->flacDataBuffer);
   assert(entry != NULL);
   memcpy(buffer, entry->data, entry->size);
   *bytes = entry->size;
-  fwrite(buffer, sizeof(char), entry->size, debugFile);
+
+  printDebug("Copied %lu bytes\n", *bytes);
 
   sem_post(&playback->semaphores.flacData);
   sem_post(&playback->semaphores.pushFlacData);
@@ -196,6 +181,10 @@ void flacMetadataCb(const FLAC__StreamDecoder *decoder,
   format->channels = metadata->data.stream_info.channels;
   format->byte_format = AO_FMT_BIG;
 
+  playback->rawDataBuffer = newCircleBuffer(FFUN_RAW_DATA_BUFF_CAPACITY + 1,
+      metadata->data.stream_info.min_blocksize * metadata->data.stream_info.bits_per_sample / 8);
+  
+
   playback->aoInfo.device = ao_open_live(playback->aoInfo.driver, format, NULL);
 }
 
@@ -203,7 +192,7 @@ void *audioPlaybackFn(struct Playback *playback) {
 
   printf("Starting audio playback loop\n");
   while (1) {
-    printf("RawDataPull: %d\n", semVal(&playback->semaphores.pullRawData));
+    printDebug("RawDataPull: %d\n", semVal(&playback->semaphores.pullRawData));
     sem_wait(&playback->semaphores.pullRawData);
     sem_wait(&playback->semaphores.rawData);
 
@@ -220,14 +209,15 @@ void *audioPlaybackFn(struct Playback *playback) {
 }
 
 void *dataStreamFunc(struct Playback *playback) {
-  FILE * udpDebugFile = fopen("udpDebugFile.bin", "wb");
+  FILE * receivedDataFile = fopen("./audio/recieved.data.bin", "wb");
+  FILE * partialDataFile = fopen("./audio/partial.data.bin", "wb");
   struct MessageHeader header;
   struct FeedMeMessage feedMeMessage;
   struct DataMessage dataMessage;
   int seq = 0;
   char udpDataBuffer[FFUN_UDP_DGRAM_MAX_SIZE];
   struct DataMessage partialResultsArray[FFUN_REQUESTED_ELEMENTS_NUMBER];
-  char dataMergeArray[FFUN_REQUESTED_ELEMENTS_NUMBER][FFUN_REQUESTED_DATA_SIZE];
+  char dataMergeArray[FFUN_REQUESTED_ELEMENTS_NUMBER * FFUN_REQUESTED_DATA_SIZE];
 
   struct pollfd pfd;
   pfd.fd = playback->socket;
@@ -246,9 +236,11 @@ void *dataStreamFunc(struct Playback *playback) {
     char memBackup[FFUN_UDP_DGRAM_MAX_SIZE];
     memcpy(memBackup, udpDataBuffer, FFUN_UDP_DGRAM_MAX_SIZE);
 
-    int totalDataSize = 0;
     printDebug("Sending FeedMe\n");
+
     send(playback->socket, udpDataBuffer, offset, 0);
+
+    memset(partialResultsArray, 1, sizeof(partialResultsArray));
 
     for (int i = 0; i < FFUN_REQUESTED_ELEMENTS_NUMBER; i++) {
       int result = poll(&pfd, 1, FFUN_REQUESTED_DATA_TIMEOUT);
@@ -260,26 +252,25 @@ void *dataStreamFunc(struct Playback *playback) {
 
       if (result == 0 /* timeout */) {
         printError("poll: TIMEOUT\n");
-        totalDataSize = sizeof(dataMergeArray);
         break;
       }
 
 
       size_t r = recv(playback->socket, udpDataBuffer, FFUN_UDP_DGRAM_MAX_SIZE, 0);
-      assert(r != 9); // ?????? why is it 9
-      fwrite(udpDataBuffer, sizeof(char), r, udpDebugFile);
+      assert(r != 9); // ?????? why is it 
       offset = deserializeMessageHeader(udpDataBuffer, &header);
-      printDebug("Received message with seq: %d\n", header.seq);
+      // printDebug("Received message with seq: %d\n", header.seq);
       assert(header.type == DATA);
       offset += deserializeDataMessage(udpDataBuffer + offset, &partialResultsArray[header.seq]);
+      fwrite(partialResultsArray[header.seq].data, sizeof(char), partialResultsArray[header.seq].dataSize, receivedDataFile);
     }
 
     offset = 0;
     for(int i = 0; i < FFUN_REQUESTED_ELEMENTS_NUMBER; i++) {
-      memcpy(partialResultsArray[i].data, dataMergeArray+offset, partialResultsArray[i].dataSize);
-      offset += partialResultsArray[i].dataSize;
+      memcpy(&dataMergeArray[offset], partialResultsArray[i].data, partialResultsArray[i].dataSize);
+      offset +=  partialResultsArray[i].dataSize;
     }
-    writeDataToBuffer(playback->flacDataBuffer, dataMergeArray, totalDataSize);
+    writeDataToBuffer(playback->flacDataBuffer, dataMergeArray, offset);
     sem_post(&playback->semaphores.flacData);
     sem_post(&playback->semaphores.pullFlacData);
   }

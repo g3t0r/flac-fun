@@ -42,6 +42,7 @@ struct CircleBufferEntry *writeDataToBuffer(struct CircleBuffer *buffer,
     return NULL;
   }
 
+  assert(size != 0);
   (buffer->entries + buffer->head)->size = size;
   memcpy((buffer->entries + buffer->head)->data, data, size);
 

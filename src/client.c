@@ -37,41 +37,6 @@ struct RequestDataArgs {
   struct Playback *playback;
 };
 
-struct HandleDataMessageArgs {
-  struct CircleBuffer *flacDataCircleBuffer;
-  sem_t * bufferMutex;
-  sem_t * bufferRead;
-  sem_t * bufferWrite;
-  struct ByteArray byteArray;
-};
-
-void *handleDataMessageFn(struct HandleDataMessageArgs *args) {
-
-  struct MessageHeader header;
-  struct DataMessage dataMessage;
-
-  int headerSize = deserializeMessageHeader(args->byteArray.buffer, &header);
-  assert(header.type == DATA);
-  printf("Header seq: %d\n", header.seq);
-  deserializeDataMessage(args->byteArray.buffer+headerSize, &dataMessage);
-
-  char * data = malloc(dataMessage.dataSize);
-  memcpy(data, dataMessage.data, dataMessage.dataSize);
-  free(dataMessage.data);
-
-  sem_wait(args->bufferWrite);
-  sem_wait(args->bufferMutex);
-
-  struct CircleBufferEntry * createdEntry =
-    writeDataToBuffer(args->flacDataCircleBuffer, data, dataMessage.dataSize);
-  assert(createdEntry != NULL);
-
-  sem_post(args->bufferMutex);
-  sem_post(args->bufferRead);
-
-  return NULL;
-}
-
 int main(int argc, char **argv) {
 
   // begin server init

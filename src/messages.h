@@ -15,8 +15,6 @@ struct MessageHeader {
   uint8_t type;
 };
 
-struct Message {};
-
 struct DataMessage {
   uint32_t dataSize;
   char *data;

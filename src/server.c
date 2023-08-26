@@ -27,12 +27,14 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct ClientContext *clientContext,
                                struct MessageHeader *header,
                                struct FeedMeMessage *message);
+FILE *debugFile;
 
 int main(int argc, char **argv) {
 
   struct ServerContext serverContext;
   initializeServer(&serverContext);
   printf("sd: %u\n", serverContext.socket);
+  debugFile = fopen("./audio/server.data.bin", "wb");
 
   while (1) {
     printf("Inside loop\n");
@@ -93,11 +95,9 @@ int main(int argc, char **argv) {
   }
 }
 
-FILE *debugFile;
 
 void initializeServer(struct ServerContext *serverContext) {
 
-  debugFile = fopen("./audio/server.debug.flac", "wb");
   int sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (sd == -1) {
     printf("Problem creating socket: %s\n", strerror(errno));
@@ -187,6 +187,9 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
     assert((char *)&header.type != dataMessage.data + 8);
     uint16_t headerSize = serializeMessageHeader(&header, buffer);
     uint messageSize = serializeDataMessage(&dataMessage, buffer + headerSize);
+
+    fwrite(dataMessage.data, sizeof(char), dataMessage.dataSize, debugFile);
+
     free(dataMessage.data);
 
     int currentSend =
@@ -194,12 +197,6 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
                (const struct sockaddr *)&clientContext->clientAddr,
                clientContext->clientAddrSize);
     sentBytes += currentSend;
-
-    /*
-     * NOTE: We can see that data is being malformed on a server
-     */
-    fwrite(buffer + headerSize + sizeof(dataMessage.dataSize), sizeof(char),
-           messageSize, debugFile);
   }
 
   printf("Sent bytes: %d\n", sentBytes);

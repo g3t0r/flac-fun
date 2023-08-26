@@ -52,7 +52,6 @@ struct Playback {
     sem_t pushFlacData;
     sem_t pullFlacData;
     sem_t rawData;
-    sem_t rawDataDelay;
     sem_t pushRawData;
     sem_t pullRawData;
   } semaphores;
