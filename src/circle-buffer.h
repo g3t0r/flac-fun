@@ -5,7 +5,7 @@
 
 struct CircleBufferEntry {
   size_t size;
-  char data[];
+  char * data;
 };
 
 struct CircleBuffer {

@@ -1,13 +1,12 @@
 #include "circle-buffer.h"
+#include "logs.h"
 #include <assert.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct CircleBuffer *newCircleBuffer(size_t capacity, size_t elemSize) {
-
-  size_t sizeWithoutEntries = (size_t) &((struct CircleBuffer *) 0)->entries;
-  size_t entriesSize = capacity * sizeof(struct CircleBufferEntry);
 
   struct CircleBuffer *buffer = malloc(sizeof *buffer);
   buffer->capacity = capacity;
@@ -15,17 +14,24 @@ struct CircleBuffer *newCircleBuffer(size_t capacity, size_t elemSize) {
   buffer->head = 0;
   buffer->tail = 0;
   buffer->currentSize = 0;
-  buffer->entries = malloc(capacity * elemSize);
+  buffer->entries = malloc(sizeof(struct CircleBufferEntry) * capacity);
+  for (int i = 0; i < capacity; i++) {
+    (buffer->entries+i)->data = malloc(elemSize);
+  }
   return buffer;
 }
 
 void destroyCircleBuffer(struct CircleBuffer *buffer) {
+  for (int i = 0; i < buffer->capacity; i++) {
+    free((buffer->entries+i)->data);
+  }
   free(buffer->entries);
   free(buffer);
 }
 
 struct CircleBufferEntry *readEntryFromBuffer(struct CircleBuffer *buffer) {
   if (buffer->head == buffer->tail) {
+    printDebug("CB: returning null\n");
     return NULL;
   }
   struct CircleBufferEntry *toReturn = buffer->entries + buffer->tail;
