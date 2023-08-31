@@ -182,7 +182,9 @@ void flacMetadataCb(const FLAC__StreamDecoder *decoder,
   format->byte_format = AO_FMT_BIG;
 
   playback->rawDataBuffer = newCircleBuffer(FFUN_RAW_DATA_BUFF_CAPACITY + 1,
-      metadata->data.stream_info.min_blocksize * metadata->data.stream_info.bits_per_sample / 8);
+      metadata->data.stream_info.min_blocksize *
+      metadata->data.stream_info.bits_per_sample / 8 *
+      metadata->data.stream_info.channels);
   
 
   playback->aoInfo.device = ao_open_live(playback->aoInfo.driver, format, NULL);
