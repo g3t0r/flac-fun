@@ -3,9 +3,9 @@
 #include "config.h"
 
 #ifdef FFUN_LOG_LEVEL_ENABLED_DEBUG
-#define pring_debug(...) printf(__VA_ARGS__)
+#define print_debug(...) printf(__VA_ARGS__)
 #else 
-#define pring_debug(...)
+#define print_debug(...)
 #endif
 
 #ifdef FFUN_LOG_LEVEL_ENABLED_VERBOSE

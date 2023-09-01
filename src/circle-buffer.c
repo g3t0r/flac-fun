@@ -31,7 +31,7 @@ void destroyCircleBuffer(struct CircleBuffer *buffer) {
 
 struct CircleBufferEntry *circle_buffer_read(struct CircleBuffer *buffer) {
   if (buffer->head == buffer->tail) {
-    pring_debug("CB: returning null\n");
+    print_debug("CB: returning null\n");
     return NULL;
   }
   struct CircleBufferEntry *toReturn = buffer->entries + buffer->tail;

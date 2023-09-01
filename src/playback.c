@@ -97,7 +97,7 @@ void playback_feed_data(struct Playback * playback, char * data, size_t data_siz
 /* private */
 static void *playback_audio_thread_fn(struct Playback *playback) {
 
-  printf("Starting audio playback loop\n");
+  print_debug("Starting audio playback loop\n");
   while (1) {
     sem_wait(&playback->semaphores.raw_data_pull);
     sem_wait(&playback->semaphores.raw_data_mutex);
@@ -126,7 +126,7 @@ static FLAC__StreamDecoderWriteStatus flac_stream_decoder_write_cb(
   uint32_t bytes_per_sample = format->bits / 8;
   uint32_t buffer_size = block_size * bytes_per_sample * number_of_channels;
 
-  pring_debug("Hello from flacWriteCb");
+  print_debug("Hello from flacWriteCb");
   char *output_buffer = calloc(buffer_size, sizeof(char));
   assert(output_buffer != NULL);
 
@@ -175,7 +175,7 @@ flac_stream_decoder_read_cb(const FLAC__StreamDecoder *decoder,
 
   memcpy(buffer, entry->data, entry->size);
   *bytes = entry->size;
-  pring_debug("Copied %lu bytes\n", *bytes);
+  print_debug("Copied %lu bytes\n", *bytes);
 
   sem_post(&playback->semaphores.flac_data_mutex);
   sem_post(&playback->semaphores.flac_data_push);
