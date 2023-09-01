@@ -19,8 +19,8 @@ struct CircleBuffer {
 
 struct CircleBuffer *newCircleBuffer(size_t capacity, size_t elemSize);
 void destroyCircleBuffer(struct CircleBuffer *buffer);
-struct CircleBufferEntry *readEntryFromBuffer(struct CircleBuffer *buffer);
-struct CircleBufferEntry *writeDataToBuffer(struct CircleBuffer *buffer,
+struct CircleBufferEntry *circle_buffer_read(struct CircleBuffer *buffer);
+struct CircleBufferEntry *circle_buffer_write(struct CircleBuffer *buffer,
                                             const void *data, size_t size);
 
 #endif // CIRCLE_BUFFER_H_

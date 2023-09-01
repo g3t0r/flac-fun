@@ -29,9 +29,9 @@ void destroyCircleBuffer(struct CircleBuffer *buffer) {
   free(buffer);
 }
 
-struct CircleBufferEntry *readEntryFromBuffer(struct CircleBuffer *buffer) {
+struct CircleBufferEntry *circle_buffer_read(struct CircleBuffer *buffer) {
   if (buffer->head == buffer->tail) {
-    printDebug("CB: returning null\n");
+    pring_debug("CB: returning null\n");
     return NULL;
   }
   struct CircleBufferEntry *toReturn = buffer->entries + buffer->tail;
@@ -40,7 +40,7 @@ struct CircleBufferEntry *readEntryFromBuffer(struct CircleBuffer *buffer) {
   return toReturn;
 }
 
-struct CircleBufferEntry *writeDataToBuffer(struct CircleBuffer *buffer,
+struct CircleBufferEntry *circle_buffer_write(struct CircleBuffer *buffer,
                                             const void *data, size_t size) {
   assert(buffer != NULL);
   assert(data != NULL);

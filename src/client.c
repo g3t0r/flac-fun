@@ -53,9 +53,9 @@ int main(int argc, char **argv) {
   // begin playback init
   struct Playback *playback = malloc(sizeof(struct Playback));
   playback->socket = serverInfo.socket;
-  initPlayback(playback);
+  playback_init(playback);
 
-  startPlayback(playback);
+  playback_start(playback);
 }
 
 static int initializeSocket() {
