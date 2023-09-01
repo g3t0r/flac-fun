@@ -1,23 +1,21 @@
-#include "playback.h"
-#include "bytes.h"
-#include "circle-buffer.h"
-#include "config.h"
-#include "logs.h"
-#include "messages.h"
 #include <FLAC/stream_decoder.h>
 #include <ao/ao.h>
 #include <assert.h>
-#include <bits/pthreadtypes.h>
-#include <endian.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#include "playback.h"
+#include "bytes.h"
+#include "circle-buffer.h"
+#include "config.h"
+#include "logs.h"
+#include "messages.h"
 
 static void *playback_audio_thread_fn(struct Playback *playback);
 
@@ -38,10 +36,7 @@ static void flac_stream_decoder_error_cb(const FLAC__StreamDecoder *decoder,
                                   FLAC__StreamDecoderErrorStatus status,
                                   void *client_data);
 
-
-
-
-/* IMPLEMENTATION */
+/*=== IMPLEMENTATION ===================================================*/
 
 /* public */
 int playback_init(struct Playback *playback) {
