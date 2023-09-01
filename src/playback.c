@@ -50,7 +50,7 @@ int playback_init(struct Playback *playback) {
   sem_init(&playback->semaphores.raw_data_push, 0, FFUN_FLAC_DATA_BUFF_CAPACITY);
   sem_init(&playback->semaphores.raw_data_pull, 0, 0);
 
-  playback->flac_data_buffer = newCircleBuffer(FFUN_FLAC_DATA_BUFF_CAPACITY + 1,
+  playback->flac_data_buffer = circle_buffer_new(FFUN_FLAC_DATA_BUFF_CAPACITY + 1,
                                              FFUN_FLAC_DATA_BUFF_ELEMENT_SIZE);
 
   playback->ao_info.driver = ao_default_driver_id();
@@ -193,7 +193,7 @@ static void flac_stream_decoder_metadata_cb(const FLAC__StreamDecoder *decoder,
   format->byte_format = AO_FMT_BIG;
 
   playback->raw_data_buffer =
-      newCircleBuffer(FFUN_RAW_DATA_BUFF_CAPACITY + 1,
+      circle_buffer_new(FFUN_RAW_DATA_BUFF_CAPACITY + 1,
                       metadata->data.stream_info.min_blocksize *
                           metadata->data.stream_info.bits_per_sample / 8 *
                           metadata->data.stream_info.channels);
