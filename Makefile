@@ -22,7 +22,7 @@ server:
 .PHONY: client
 client:
 	mkdir -p build
-	$(CC) $(OPTS) src/client.c $(SHARED_SOURCES) $(CLIENT_SOURCES) $(CLIENT_LIBS) -o build/client
+	$(CC) $(OPTS) src/player_daemon.c $(SHARED_SOURCES) $(CLIENT_SOURCES) $(CLIENT_LIBS) -o build/client
 
 .PHONY: clean
 clean:
