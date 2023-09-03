@@ -19,7 +19,7 @@ struct ByteArray {
  *
  * @return size Bytes written to buffer.
  */
-uint32_t readIntegerFromBuffer(void * dst, const void * const src, uint8_t size);
+uint32_t bytes_buffer_read_int(void * dst, const void * const src, uint8_t size);
 
 
 /**
@@ -36,13 +36,13 @@ uint32_t readIntegerFromBuffer(void * dst, const void * const src, uint8_t size)
  *
  *
  */
-uint32_t writeIntegerToBuffer(void * dst, const void * const src, uint8_t size);
+uint32_t bytes_buffer_write_int(void * dst, const void * const src, uint8_t size);
 
-uint32_t toBigEndian32(uint32_t number);
-uint32_t toBigEndian16(uint16_t number);
+uint32_t bytes_convert_to_big_endian_32(uint32_t number);
+uint32_t bytes_convert_to_big_endian_16(uint16_t number);
 
-uint32_t toLittleEndian32(uint32_t number);
-uint32_t toLittleEndian16(uint16_t number);
+uint32_t bytes_convert_to_little_endian_32(uint32_t number);
+uint32_t bytes_convert_to_little_endian_16(uint16_t number);
 
 
 

@@ -35,7 +35,7 @@ struct FeedMeMessage {
  *
  * @return Number of bytes written to the buffer
  */
-uint32_t serializeMessageHeader(const struct MessageHeader *const header,
+uint32_t messages_header_serialize(const struct MessageHeader *const header,
                                 char *buffer);
 
 /**
@@ -48,7 +48,7 @@ uint32_t serializeMessageHeader(const struct MessageHeader *const header,
  *
  * @return Number of bytes read from the buffer
  */
-uint32_t deserializeMessageHeader(const char *const buffer,
+uint32_t messages_header_deserialize(const char *const buffer,
                                   struct MessageHeader *header);
 
 /**
@@ -62,7 +62,7 @@ uint32_t deserializeMessageHeader(const char *const buffer,
  *
  * @return Number of bytes written to the buffer
  */
-uint32_t serializeDataMessage(const struct DataMessage *const message,
+uint32_t messages_data_msg_serialize(const struct DataMessage *const message,
                               char *buffer);
 
 /**
@@ -75,19 +75,19 @@ uint32_t serializeDataMessage(const struct DataMessage *const message,
  *
  * @return Number of bytes read from the buffer
  */
-uint32_t deserializeDataMessage(const char *const buffer,
+uint32_t messages_data_msg_deserialize(const char *const buffer,
                                 struct DataMessage *message);
 
 /**
  * Function calculates number of bytes needed to serialize DataMessage,
  *          including memory pointed by DataMessage.data
  */
-uint32_t dataMessageGetBytesLength(const struct DataMessage *const message);
+uint32_t messages_data_msg_get_length_bytes(const struct DataMessage *const message);
 
-uint16_t serializeFeedMeMessage(const struct FeedMeMessage *message,
+uint16_t messages_feed_me_msg_serialize(const struct FeedMeMessage *message,
                                 char *buffer);
 
-uint16_t deserializeFeedMeMessage(const char *const buffer,
+uint16_t messages_feed_me_msg_deserialize(const char *const buffer,
                                   struct FeedMeMessage *message);
 
 #endif // SIMPLE_MESSAGES_H_

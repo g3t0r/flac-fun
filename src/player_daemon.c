@@ -88,12 +88,12 @@ int main(int argc, char** argv) {
 
 
     struct DataMessage * data_message = malloc(sizeof *header);
-    size_t header_size = deserializeMessageHeader(udp_data_buffer, header);
+    size_t header_size = messages_header_deserialize(udp_data_buffer, header);
     if(header->type != DATA) {
       printError("Not supported yet\n");
     }
     print_debug("Received data message\n");
-    deserializeDataMessage(udp_data_buffer + header_size, data_message);
+    messages_data_msg_deserialize(udp_data_buffer + header_size, data_message);
     player_daemon_handle_data_message(&player_daemon, header, data_message);
   }
 
@@ -123,8 +123,8 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
   };
 
   char udp_data_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
-  size_t udp_data_size =  serializeMessageHeader(&message_header, udp_data_buffer);
-  udp_data_size += serializeFeedMeMessage(&feed_me_message,
+  size_t udp_data_size =  messages_header_serialize(&message_header, udp_data_buffer);
+  udp_data_size += messages_feed_me_msg_serialize(&feed_me_message,
       udp_data_buffer + udp_data_size);
 
   while(player_daemon->player_status == PLAYER_DAEMON_AUDIO_STATUS_PLAYING) {

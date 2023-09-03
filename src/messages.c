@@ -15,18 +15,18 @@
  *
  * @return Number of bytes written to the buffer
  */
-uint32_t serializeMessageHeader(const struct MessageHeader *const header,
+uint32_t messages_header_serialize(const struct MessageHeader *const header,
                                 char *buffer) {
-  int writtenBytes =
-      writeIntegerToBuffer(buffer, &header->type, sizeof(header->type));
+  int written_bytes =
+      bytes_buffer_write_int(buffer, &header->type, sizeof(header->type));
 
-  writtenBytes += writeIntegerToBuffer(buffer + writtenBytes, &header->size,
+  written_bytes += bytes_buffer_write_int(buffer + written_bytes, &header->size,
                                        sizeof(header->size));
 
-  writtenBytes += writeIntegerToBuffer(buffer + writtenBytes, &header->seq,
+  written_bytes += bytes_buffer_write_int(buffer + written_bytes, &header->seq,
                                        sizeof(header->seq));
 
-  return writtenBytes;
+  return written_bytes;
 }
 
 /**
@@ -39,17 +39,18 @@ uint32_t serializeMessageHeader(const struct MessageHeader *const header,
  *
  * @return Number of bytes read from the buffer
  */
-uint32_t deserializeMessageHeader(const char *const buffer,
+uint32_t messages_header_deserialize(const char *const buffer,
                                   struct MessageHeader *header) {
-  int readBytes =
-      readIntegerFromBuffer(&header->type, buffer, sizeof(header->type));
+  int read_bytes =
+      bytes_buffer_read_int(&header->type, buffer, sizeof(header->type));
 
-  readBytes += readIntegerFromBuffer(&header->size, buffer + readBytes,
+  read_bytes += bytes_buffer_read_int(&header->size, buffer + read_bytes,
                                      sizeof(header->size));
-  readBytes += readIntegerFromBuffer(&header->seq, buffer + readBytes,
+
+  read_bytes += bytes_buffer_read_int(&header->seq, buffer + read_bytes,
                                      sizeof(header->seq));
 
-  return readBytes;
+  return read_bytes;
 }
 
 /**
@@ -63,15 +64,15 @@ uint32_t deserializeMessageHeader(const char *const buffer,
  *
  * @return Number of bytes written to the buffer
  */
-uint32_t serializeDataMessage(const struct DataMessage *const message,
+uint32_t messages_data_msg_serialize(const struct DataMessage *const message,
                               char *buffer) {
-  int writtenBytes = writeIntegerToBuffer(buffer, &message->dataSize,
+  int written_bytes = bytes_buffer_write_int(buffer, &message->dataSize,
                                           sizeof(message->dataSize));
 
-  memcpy(buffer + writtenBytes, message->data, message->dataSize);
-  writtenBytes += message->dataSize;
+  memcpy(buffer + written_bytes, message->data, message->dataSize);
+  written_bytes += message->dataSize;
 
-  return writtenBytes;
+  return written_bytes;
 }
 
 /**
@@ -83,35 +84,35 @@ uint32_t serializeDataMessage(const struct DataMessage *const message,
  *
  * @return Number of bytes read from the buffer
  */
-uint32_t deserializeDataMessage(const char *const buffer,
+uint32_t messages_data_msg_deserialize(const char *const buffer,
                                 struct DataMessage *message) {
 
-  int readBytes = readIntegerFromBuffer(&message->dataSize, buffer,
+  int read_bytes = bytes_buffer_read_int(&message->dataSize, buffer,
                                         sizeof(message->dataSize));
 
   message->data = malloc(sizeof(char) * message->dataSize);
-  memcpy(message->data, buffer + readBytes, message->dataSize);
-  readBytes += message->dataSize;
+  memcpy(message->data, buffer + read_bytes, message->dataSize);
+  read_bytes += message->dataSize;
 
-  return readBytes;
+  return read_bytes;
 }
 
 /**
  * Function calculates number of bytes needed to serialize DataMessage,
  *          including memory pointed by DataMessage.data
  */
-uint32_t dataMessageGetBytesLength(const struct DataMessage *const message) {
+uint32_t messages_data_msg_get_length_bytes(const struct DataMessage *const message) {
   return sizeof(message->dataSize) + message->dataSize * sizeof(char);
 }
 
-uint16_t serializeFeedMeMessage(const struct FeedMeMessage *message,
+uint16_t messages_feed_me_msg_serialize(const struct FeedMeMessage *message,
                                 char *buffer) {
-  return writeIntegerToBuffer(buffer, &message->dataSize,
+  return bytes_buffer_write_int(buffer, &message->dataSize,
                               sizeof(message->dataSize));
 }
 
-uint16_t deserializeFeedMeMessage(const char *const buffer,
+uint16_t messages_feed_me_msg_deserialize(const char *const buffer,
                                   struct FeedMeMessage *message) {
-  return readIntegerFromBuffer(&message->dataSize, buffer,
+  return bytes_buffer_read_int(&message->dataSize, buffer,
                                sizeof(message->dataSize));
 }

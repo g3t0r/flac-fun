@@ -133,13 +133,13 @@ void *handleClient(struct HandleClientArgs *args) {
   int readBytes = 0;
   struct MessageHeader *header = malloc(sizeof(struct MessageHeader));
 
-  readBytes = deserializeMessageHeader(args->rawMessage, header);
+  readBytes = messages_header_deserialize(args->rawMessage, header);
 
   switch ((enum MessageType)header->type) {
   case FEED_ME: {
 
     struct FeedMeMessage *message = malloc(sizeof(struct FeedMeMessage));
-    deserializeFeedMeMessage(args->rawMessage + readBytes, message);
+    messages_feed_me_msg_deserialize(args->rawMessage + readBytes, message);
     free(args->rawMessage);
     args->rawMessage = NULL;
     handleFeedMeMessage(args->serverContext, args->clientContext, header,
@@ -178,15 +178,15 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
     dataMessage.dataSize =
         fread(dataMessage.data, sizeof(char), receivedMessage->dataSize,
               serverContext->openedFile);
-    header.size = dataMessageGetBytesLength(&dataMessage);
+    header.size = messages_data_msg_get_length_bytes(&dataMessage);
     header.type = DATA;
     header.seq = i;
 
     char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
     assert((char *)&header.type != dataMessage.data + 8);
-    uint16_t headerSize = serializeMessageHeader(&header, buffer);
-    uint messageSize = serializeDataMessage(&dataMessage, buffer + headerSize);
+    uint16_t headerSize = messages_header_serialize(&header, buffer);
+    uint messageSize = messages_data_msg_serialize(&dataMessage, buffer + headerSize);
 
     fwrite(dataMessage.data, sizeof(char), dataMessage.dataSize, debugFile);
 

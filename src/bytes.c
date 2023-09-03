@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include <string.h>
 
-static inline uint32_t toggleEndianess32(uint32_t number);
-static inline uint16_t toggleEndianess16(uint16_t number);
+static inline uint32_t toggle_endianess_32(uint32_t number);
+static inline uint16_t toggle_endianess_16(uint16_t number);
 
 /**
  * Function reads integer of certain SIZE from SRC to DST
@@ -20,7 +20,7 @@ static inline uint16_t toggleEndianess16(uint16_t number);
  * @return size Bytes read from buffer
  *
  */
-uint32_t readIntegerFromBuffer(void *dst, const void *const src, uint8_t size) {
+uint32_t bytes_buffer_read_int(void *dst, const void *const src, uint8_t size) {
 
   if (size == sizeof(uint8_t)) {
     memcpy(dst, src, size);
@@ -30,14 +30,14 @@ uint32_t readIntegerFromBuffer(void *dst, const void *const src, uint8_t size) {
   if (size == sizeof(uint16_t)) {
     uint16_t tmp;
     memcpy(&tmp, src, size);
-    *(uint16_t *)dst = toLittleEndian16(tmp);
+    *(uint16_t *)dst = bytes_convert_to_little_endian_16(tmp);
     return size;
   }
 
   assert(size == sizeof(uint32_t));
   uint32_t tmp;
   memcpy(&tmp, src, size);
-  *(uint32_t *)dst = toLittleEndian32(tmp);
+  *(uint32_t *)dst = bytes_convert_to_little_endian_32(tmp);
   return size;
 }
 
@@ -56,31 +56,31 @@ uint32_t readIntegerFromBuffer(void *dst, const void *const src, uint8_t size) {
  *
  */
 
-uint32_t writeIntegerToBuffer(void *dst, const void *const src, uint8_t size) {
+uint32_t bytes_buffer_write_int(void *dst, const void *const src, uint8_t size) {
   if (size == sizeof(uint8_t)) {
     *(char *)dst = *(char *)src;
     return size;
   }
 
   if (size == sizeof(uint16_t)) {
-    uint16_t tmp = toBigEndian16(*(uint16_t *)src);
+    uint16_t tmp = bytes_convert_to_big_endian_16(*(uint16_t *)src);
     memcpy(dst, &tmp, size);
     return size;
   }
 
   assert(size == sizeof(uint32_t));
-  uint32_t tmp = toBigEndian32(*(uint32_t *)src);
+  uint32_t tmp = bytes_convert_to_big_endian_32(*(uint32_t *)src);
   memcpy(dst, &tmp, size);
   return size;
 }
 
-uint32_t toBigEndian32(uint32_t number) { return toggleEndianess32(number); }
-uint32_t toBigEndian16(uint16_t number) { return toggleEndianess16(number); }
+uint32_t bytes_convert_to_big_endian_32(uint32_t number) { return toggle_endianess_32(number); }
+uint32_t bytes_convert_to_big_endian_16(uint16_t number) { return toggle_endianess_16(number); }
 
-uint32_t toLittleEndian32(uint32_t number) { return toggleEndianess32(number); }
-uint32_t toLittleEndian16(uint16_t number) { return toggleEndianess16(number); }
+uint32_t bytes_convert_to_little_endian_32(uint32_t number) { return toggle_endianess_32(number); }
+uint32_t bytes_convert_to_little_endian_16(uint16_t number) { return toggle_endianess_16(number); }
 
-static inline uint32_t toggleEndianess32(uint32_t number) {
+static inline uint32_t toggle_endianess_32(uint32_t number) {
   uint32_t converted = 0;
   uint32_t mask = 0xFF;
 
@@ -92,7 +92,7 @@ static inline uint32_t toggleEndianess32(uint32_t number) {
   return converted;
 }
 
-static inline uint16_t toggleEndianess16(uint16_t number) {
+static inline uint16_t toggle_endianess_16(uint16_t number) {
   uint16_t converted = (number << 8) + (number >> 8);
   return converted;
 }
