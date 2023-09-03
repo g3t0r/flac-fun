@@ -17,6 +17,9 @@
 #include "time.h"
 #include "unistd.h"
 
+#define sem_post(sem) print_debug("sem post %s:%d\n", __FILE__, __LINE__); sem_post(sem);
+#define sem_wait(sem) print_debug("sem wait %s:%d\n", __FILE__, __LINE__); sem_wait(sem);
+
 
 enum PlayerDaemonAudioStatus {
   PLAYER_DAEMON_AUDIO_STATUS_STOPPED = 0,
@@ -36,7 +39,7 @@ struct PlayerDaemon {
   } content_server;
 };
 
-void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon player_daemon);
+void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_daemon);
 void player_daemon_handle_data_message(struct PlayerDaemon * player_daemon, struct MessageHeader * message_header, struct DataMessage * data_message);
 
 int main(int argc, char** argv) {
@@ -60,8 +63,18 @@ int main(int argc, char** argv) {
   poll_fd.events = POLLIN;
   char udp_data_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
+  pthread_t data_request_loop_tid;
+  pthread_create(&data_request_loop_tid, NULL,
+      (void * (*)(void *))player_daemon_request_data_loop_thread_fn,
+      &player_daemon);
+
+  player_daemon.playback = malloc(sizeof(struct Playback));
+  playback_init(player_daemon.playback);
+  pthread_t playback_t;
+  pthread_create(&playback_t, NULL, playback_start, player_daemon.playback);
 
   while(1) {
+    print_debug("Listener loop iteration\n");
     int poll_result = poll(&poll_fd, 1, -1);
 
     if(poll_result == -1) {
@@ -76,14 +89,14 @@ int main(int argc, char** argv) {
 
     struct MessageHeader * header = malloc(sizeof *header);
 
-    if(header->type != DATA) {
-      printError("Not supported yet\n");
-    }
 
     struct DataMessage * data_message = malloc(sizeof *header);
     size_t header_size = deserializeMessageHeader(udp_data_buffer, header);
+    if(header->type != DATA) {
+      printError("Not supported yet\n");
+    }
+    print_debug("Received data message\n");
     deserializeDataMessage(udp_data_buffer + header_size, data_message);
-
     player_daemon_handle_data_message(&player_daemon, header, data_message);
   }
 
@@ -98,12 +111,12 @@ void player_daemon_handle_data_message(
   player_daemon->message_buffer[message_header->seq] = *data_message;
   player_daemon->message_series_element_counter++;
 
-  if(player_daemon->message_series_element_counter != 5) {
-    return;
+  if(player_daemon->message_series_element_counter == FFUN_PLAYBACK_DAEMON_DATA_MESSAGE_SERIES_SIZE) {
+    sem_post(&player_daemon->message_series_data_merge_mutex);
   }
 }
 
-void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon player_daemon) {
+void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_daemon) {
 
   struct FeedMeMessage feed_me_message = { FFUN_REQUESTED_DATA_SIZE };
   struct MessageHeader message_header = {
@@ -117,37 +130,50 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon player_daem
   udp_data_size += serializeFeedMeMessage(&feed_me_message,
       udp_data_buffer + udp_data_size);
 
-  while(player_daemon.player_status == PLAYER_DAEMON_AUDIO_STATUS_PLAYING) {
+  while(player_daemon->player_status == PLAYER_DAEMON_AUDIO_STATUS_PLAYING) {
     
-    sendto(player_daemon.content_server.socket,
+    sendto(player_daemon->content_server.socket,
         udp_data_buffer,
         udp_data_size,
         0,
-        (struct sockaddr *) &player_daemon.content_server.sock_addr,
-        sizeof(player_daemon.content_server.sock_addr));
+        (struct sockaddr *) &player_daemon->content_server.sock_addr,
+        sizeof(player_daemon->content_server.sock_addr));
 
     struct timespec time_spec;
     clock_gettime(CLOCK_REALTIME, &time_spec);
+    time_spec.tv_sec += 3600;
     time_spec.tv_nsec += 1000000 /* nsec in milisec*/
       * FFUN_PLAYBACK_DAEMON_DATA_MESSAGE_SERIES_TIMEOUT_MS;
-    sem_timedwait(&player_daemon.message_series_data_merge_mutex, &time_spec);
 
+    /*
+    if(ETIMEDOUT == sem_timedwait(
+          &player_daemon->message_series_data_merge_mutex,
+          &time_spec)) {
+      printVerbose("message_series_data_merge_mutex timed out\n");
+    }
+    */
+
+    sem_wait(&player_daemon->message_series_data_merge_mutex);
     char message_series_merge_buffer[FFUN_PLAYBACK_DAEMON_DATA_MESSAGE_SERIES_SIZE
       * FFUN_UDP_DGRAM_MAX_SIZE];
 
     int merged_data_size = 0;
-    for(int i = 0; i < player_daemon.message_series_element_counter; i++) {
+    for(int i = 0; i < player_daemon->message_series_element_counter; i++) {
       memcpy(message_series_merge_buffer + merged_data_size,
-          (player_daemon.message_buffer + i)->data,
-          (player_daemon.message_buffer + i)->dataSize);
+          (player_daemon->message_buffer + i)->data,
+          (player_daemon->message_buffer + i)->dataSize);
 
-      merged_data_size += (player_daemon.message_buffer + i)->dataSize;
+      merged_data_size += (player_daemon->message_buffer + i)->dataSize;
     }
 
+    player_daemon->message_series_element_counter = 0;
+
+    print_debug("before feeding data\n");
     playback_feed_data(
-        player_daemon.playback,
+        player_daemon->playback,
         message_series_merge_buffer,
         merged_data_size);
+    print_debug("after feeding data\n");
   }
 
   return NULL;

@@ -39,6 +39,7 @@ static void flac_stream_decoder_error_cb(const FLAC__StreamDecoder *decoder,
 /*=== IMPLEMENTATION ===================================================*/
 
 /* public */
+
 int playback_init(struct Playback *playback) {
 
   // TODO: initialize semaphores
@@ -71,8 +72,6 @@ int playback_start(struct Playback *playback) {
 
   FLAC__stream_decoder_process_until_end_of_stream(playback->decoder);
 
-  pthread_join(audio_thread, NULL);
-  printf("Thread joined, exiting\n");
   return 0;
 }
 
