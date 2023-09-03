@@ -17,10 +17,6 @@
 #include "time.h"
 #include "unistd.h"
 
-#define sem_post(sem) print_debug("sem post %s:%d\n", __FILE__, __LINE__); sem_post(sem);
-#define sem_wait(sem) print_debug("sem wait %s:%d\n", __FILE__, __LINE__); sem_wait(sem);
-
-
 enum PlayerDaemonAudioStatus {
   PLAYER_DAEMON_AUDIO_STATUS_STOPPED = 0,
   PLAYER_DAEMON_AUDIO_STATUS_PLAYING
