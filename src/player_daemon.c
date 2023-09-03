@@ -67,7 +67,8 @@ int main(int argc, char** argv) {
   player_daemon.playback = malloc(sizeof(struct Playback));
   playback_init(player_daemon.playback);
   pthread_t playback_t;
-  pthread_create(&playback_t, NULL, playback_start, player_daemon.playback);
+  pthread_create(&playback_t, NULL,
+     (void * (*)(void *)) playback_start, player_daemon.playback);
 
   while(1) {
     print_debug("Listener loop iteration\n");
