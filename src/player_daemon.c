@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
 
   player_daemon.content_server.socket = socket(AF_INET, SOCK_DGRAM, 0);
   player_daemon.content_server.sock_addr.sin_family = AF_INET;
-  player_daemon.content_server.sock_addr.sin_port = htons(FFUN_CONTENT_SERVER_PORT);
+  player_daemon.content_server.sock_addr.sin_port = htons(FFUN_CONTENT_SERVER_PORT_UDP);
   inet_aton(FFUN_CONTENT_SERVER_IP,
       &player_daemon.content_server.sock_addr.sin_addr);
 
