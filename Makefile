@@ -11,7 +11,7 @@ CLIENT_SOURCES := src/playback.c src/circle-buffer.c
 SHARED_SOURCES := src/bytes.c src/messages.c
 OPTS := -g -pedantic
 
-default: clean server client
+default: clean server player_daemon
 
 .PHONY: server
 server:
@@ -19,10 +19,15 @@ server:
 	$(CC) $(OPTS) src/server.c $(SHARED_SOURCES) $(SERVER_LIBS) -o build/server
 
 
-.PHONY: client
+.PHONY: player_daemon
 client:
 	mkdir -p build
 	$(CC) $(OPTS) src/player_daemon.c $(SHARED_SOURCES) $(CLIENT_SOURCES) $(CLIENT_LIBS) -o build/client
+
+.PHONY: player_cli
+client:
+	mkdir -p build
+	$(CC) $(OPTS) src/player_daemon.c $(SHARED_SOURCES)-o build/ffc
 
 .PHONY: clean
 clean:

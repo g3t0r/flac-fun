@@ -7,7 +7,13 @@
 #define MSG_HEADER_SIZE 5
 #define MSG_FEED_ME_SIZE 2
 
-enum MessageType { HEARTBEAT, DATA, FEED_ME };
+enum MessageType { HEARTBEAT,
+  DATA,
+  FEED_ME,
+  MESSAGE_TYPE_PLAY_SONG,
+  MESSAGE_TYPE_TOGGLE_PAUSE,
+  MESSAGE_TYPE_OK
+};
 
 struct MessageHeader {
   uint32_t seq;
@@ -22,6 +28,10 @@ struct DataMessage {
 
 struct FeedMeMessage {
   uint16_t dataSize;
+};
+
+struct PlaySongMessage {
+  uint32_t song_id;
 };
 
 /**
@@ -89,5 +99,12 @@ uint16_t messages_feed_me_msg_serialize(const struct FeedMeMessage *message,
 
 uint16_t messages_feed_me_msg_deserialize(const char *const buffer,
                                   struct FeedMeMessage *message);
+
+uint32_t messages_play_song_msg_serialize(
+    const struct PlaySongMessage * message,
+    char * buffer);
+
+uint32_t messages_play_song_msg_deserialize(const char * const buffer,
+    struct PlaySongMessage * message);
 
 #endif // SIMPLE_MESSAGES_H_

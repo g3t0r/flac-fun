@@ -2,16 +2,20 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "player_client.h"
 #include "logs.h"
 #include "config.h"
+#include "messages.h"
 
 int player_client_connect_to_daemon(struct PlayerClient * player_client) {
   player_client->conn_info.socket = socket(AF_INET, SOCK_STREAM, 0);
   if(player_client->conn_info.socket == -1) {
     printError("Problem while creating socket: %s\n",
         strerror(errno));
+    exit(1);
   }
 
 
@@ -26,10 +30,11 @@ int player_client_connect_to_daemon(struct PlayerClient * player_client) {
 
     printError("Problem while binding socket: %s\n",
         strerror(errno));
+    exit(1);
   }
 
   player_client->player_daemon.sock_addr.sin_family = AF_INET;
-  player_client->player_daemon.sock_addr.sin_port = FFUN_PLAYER_DAEMON_PORT_UDP;
+  player_client->player_daemon.sock_addr.sin_port = FFUN_PLAYER_DAEMON_PORT_TCP;
   inet_aton(FFUN_PLAYER_DAEMON_IP,
       &player_client->player_daemon.sock_addr.sin_addr);
 
@@ -41,8 +46,58 @@ int player_client_connect_to_daemon(struct PlayerClient * player_client) {
 
     printError("Problem while connecting to player_daemon: %s\n",
         strerror(errno));
+    exit(1);
   }
 
+  player_client->player_daemon.connected = 1;
+
+  return 0;
 }
-int player_client_play(int songId);
-int player_client_toggle_pause();
+
+int player_client_play(int song_id) {
+
+  struct MessageHeader header = {
+    0,
+    MESSAGE_TYPE_PLAY_SONG,
+    sizeof(struct MessageHeader)
+  };
+
+  char udp_data[FFUN_UDP_DGRAM_MAX_SIZE];
+
+  int udp_data_size = messages_header_serialize(&header, udp_data);
+  udp_data_size += messages_play_song_msg_serialize(&header,
+      udp_data + udp_data_size);
+  send(
+      player_client->conn_info.socket,
+      udp_data,
+      udp_data_size,
+      0);
+
+  return 0;
+}
+
+int player_client_toggle_pause(struct PlayerClient * player_client) {
+
+  struct MessageHeader header = {
+    0,
+    MESSAGE_TYPE_TOGGLE_PAUSE,
+    sizeof(struct MessageHeader)
+  };
+
+  char udp_data[FFUN_UDP_DGRAM_MAX_SIZE];
+
+  int udp_data_size =  messages_header_serialize(&header, udp_data);
+
+
+  send(
+      player_client->conn_info.socket,
+      udp_data,
+      udp_data_size,
+      0);
+
+  return 0;
+}
+
+void player_client_disconnect_from_player_daemon(struct PlayerClient * player_client) {
+  close(player_client->conn_info.socket);
+}

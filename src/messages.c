@@ -116,3 +116,15 @@ uint16_t messages_feed_me_msg_deserialize(const char *const buffer,
   return bytes_buffer_read_int(&message->dataSize, buffer,
                                sizeof(message->dataSize));
 }
+
+uint32_t messages_play_song_msg_serialize(
+    const struct PlaySongMessage * message,
+    char * buffer) {
+  return bytes_buffer_write_int(buffer, &message->song_id, sizeof(message->song_id));
+}
+
+uint32_t messages_play_song_msg_deserialize(const char * const buffer,
+    struct PlaySongMessage * message) {
+  return bytes_buffer_read_int(&message->song_id, buffer, sizeof(message->song_id));
+}
+
