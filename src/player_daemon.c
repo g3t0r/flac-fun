@@ -43,8 +43,7 @@ struct PlayerDaemon {
 };
 
 void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_daemon);
-void player_daemon_handle_data_message(struct PlayerDaemon * player_daemon, struct MessageHeader * message_header, struct DataMessage * data_message);
-
+void player_daemon_handle_data_message(struct PlayerDaemon * player_daemon, int udp_socket);
 int main(int argc, char** argv) {
 
   struct PlayerDaemon player_daemon;
@@ -54,22 +53,31 @@ int main(int argc, char** argv) {
   sem_init(&player_daemon.message_series_element_counter_mutex, 0, 1);
   sem_init(&player_daemon.message_series_data_merge_mutex, 0, 0);
 
+
+  // tcp socket
+  player_daemon.socket = socket(AF_INET, SOCK_STREAM, 0);
+  player_daemon.sock_addr.sin_family = AF_INET;
+  player_daemon.sock_addr.sin_port = htons(FFUN_PLAYER_DAEMON_PORT_TCP);
+  inet_aton("0.0.0.0",
+      &player_daemon.sock_addr.sin_addr);
+
+  bind(player_daemon.socket, (struct sockaddr *) &player_daemon.sock_addr,
+      sizeof(struct sockaddr_in));
+
+  // udp socket
   player_daemon.content_server.socket = socket(AF_INET, SOCK_DGRAM, 0);
   player_daemon.content_server.sock_addr.sin_family = AF_INET;
   player_daemon.content_server.sock_addr.sin_port = htons(FFUN_CONTENT_SERVER_PORT_UDP);
   inet_aton(FFUN_CONTENT_SERVER_IP,
       &player_daemon.content_server.sock_addr.sin_addr);
 
-  bind(player_daemon.content_server.socket,
-      (struct sockaddr *) &player_daemon.content_server.sock_addr,
-      sizeof(struct sockaddr_in));
-
-
   struct pollfd poll_fd[2];
   poll_fd[POLL_INDEX_UDP].fd = player_daemon.content_server.socket;
   poll_fd[POLL_INDEX_UDP].events = POLLIN;
+  
+  poll_fd[POLL_INDEX_TCP].fd = player_daemon.socket;
+  poll_fd[POLL_INDEX_TCP].events = POLLIN;
 
-  char udp_data_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
   pthread_t data_request_loop_tid;
   pthread_create(&data_request_loop_tid, NULL,
@@ -90,33 +98,37 @@ int main(int argc, char** argv) {
      printError("Error durring poll(), message: %s\n", strerror(errno));
     }
 
-    ssize_t read_bytes = read(poll_fd[POLL_INDEX_UDP].fd, udp_data_buffer, FFUN_UDP_DGRAM_MAX_SIZE);
-
-    if(read_bytes == -1) {
-     printError("Error durring read(), message: %s\n", strerror(errno));
+    if(poll_fd[POLL_INDEX_UDP].revents & POLLIN) {
+      player_daemon_handle_data_message(&player_daemon, poll_fd[POLL_INDEX_UDP].fd);
     }
-
-    struct MessageHeader * header = malloc(sizeof *header);
-
-    struct DataMessage * data_message = malloc(sizeof *header);
-    size_t header_size = messages_header_deserialize(udp_data_buffer, header);
-    if(header->type != DATA) {
-      printError("Not supported yet\n");
-    }
-    print_debug("Received data message\n");
-    messages_data_msg_deserialize(udp_data_buffer + header_size, data_message);
-    player_daemon_handle_data_message(&player_daemon, header, data_message);
   }
+
 
   return 0;
 }
 
 void player_daemon_handle_data_message(
     struct PlayerDaemon * player_daemon,
-    struct MessageHeader * message_header,
-    struct DataMessage * data_message) {
+    int udp_socket) {
 
-  player_daemon->message_buffer[message_header->seq] = *data_message;
+  char udp_data_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
+  ssize_t read_bytes = read(udp_socket, udp_data_buffer, FFUN_UDP_DGRAM_MAX_SIZE);
+
+  if(read_bytes == -1) {
+    printError("Error durring read(), message: %s\n", strerror(errno));
+  }
+
+  struct MessageHeader header;
+  size_t header_size = messages_header_deserialize(udp_data_buffer, &header);
+  if(header.type != DATA) {
+    printError("Not supported yet\n");
+  }
+
+  print_debug("Received data message\n");
+
+  messages_data_msg_deserialize(udp_data_buffer + header_size,
+      player_daemon->message_buffer + player_daemon->message_series_element_counter);
+
   player_daemon->message_series_element_counter++;
 
   if(player_daemon->message_series_element_counter == FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE) {

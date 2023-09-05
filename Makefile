@@ -4,7 +4,7 @@
 # @file
 # @version 0.1
 
-CC := clang
+CC := gcc
 SERVER_LIBS := -lpthread -lFLAC
 CLIENT_LIBS := -lFLAC -lao -ldl -lm -lpthread
 CLIENT_SOURCES := src/playback.c src/circle-buffer.c
