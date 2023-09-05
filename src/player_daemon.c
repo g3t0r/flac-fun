@@ -22,7 +22,14 @@ enum PlayerDaemonAudioStatus {
   PLAYER_DAEMON_AUDIO_STATUS_PLAYING
 };
 
+enum PollIndex {
+  POLL_INDEX_UDP = 0,
+  POLL_INDEX_TCP
+};
+
 struct PlayerDaemon {
+  int socket;
+  struct sockaddr_in sock_addr;
   enum PlayerDaemonAudioStatus player_status;
   struct Playback * playback;
   struct DataMessage message_buffer[FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE];
@@ -53,10 +60,15 @@ int main(int argc, char** argv) {
   inet_aton(FFUN_CONTENT_SERVER_IP,
       &player_daemon.content_server.sock_addr.sin_addr);
 
+  bind(player_daemon.content_server.socket,
+      (struct sockaddr *) &player_daemon.content_server.sock_addr,
+      sizeof(struct sockaddr_in));
 
-  struct pollfd poll_fd;
-  poll_fd.fd = player_daemon.content_server.socket;
-  poll_fd.events = POLLIN;
+
+  struct pollfd poll_fd[2];
+  poll_fd[POLL_INDEX_UDP].fd = player_daemon.content_server.socket;
+  poll_fd[POLL_INDEX_UDP].events = POLLIN;
+
   char udp_data_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
   pthread_t data_request_loop_tid;
@@ -72,20 +84,19 @@ int main(int argc, char** argv) {
 
   while(1) {
     print_debug("Listener loop iteration\n");
-    int poll_result = poll(&poll_fd, 1, -1);
+    int poll_result = poll(poll_fd, 2, -1);
 
     if(poll_result == -1) {
      printError("Error durring poll(), message: %s\n", strerror(errno));
     }
 
-    ssize_t read_bytes = read(poll_fd.fd, udp_data_buffer, FFUN_UDP_DGRAM_MAX_SIZE);
+    ssize_t read_bytes = read(poll_fd[POLL_INDEX_UDP].fd, udp_data_buffer, FFUN_UDP_DGRAM_MAX_SIZE);
 
     if(read_bytes == -1) {
      printError("Error durring read(), message: %s\n", strerror(errno));
     }
 
     struct MessageHeader * header = malloc(sizeof *header);
-
 
     struct DataMessage * data_message = malloc(sizeof *header);
     size_t header_size = messages_header_deserialize(udp_data_buffer, header);
