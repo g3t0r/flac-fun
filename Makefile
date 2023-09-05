@@ -1,17 +1,17 @@
 ##
-# Project Title
+# Flac Fun
 #
 # @file
 # @version 0.1
 
-CC := gcc
+CC := clang
 SERVER_LIBS := -lpthread -lFLAC
 CLIENT_LIBS := -lFLAC -lao -ldl -lm -lpthread
 CLIENT_SOURCES := src/playback.c src/circle-buffer.c
 SHARED_SOURCES := src/bytes.c src/messages.c
 OPTS := -g -pedantic
 
-default: clean server player_daemon
+default: clean server player_daemon cli
 
 .PHONY: server
 server:
@@ -20,14 +20,14 @@ server:
 
 
 .PHONY: player_daemon
-client:
+player_daemon:
 	mkdir -p build
-	$(CC) $(OPTS) src/player_daemon.c $(SHARED_SOURCES) $(CLIENT_SOURCES) $(CLIENT_LIBS) -o build/client
+	$(CC) $(OPTS) src/player_daemon.c $(SHARED_SOURCES) $(CLIENT_SOURCES) $(CLIENT_LIBS) -o build/player_daemon
 
-.PHONY: player_cli
-client:
+.PHONY: cli
+cli:
 	mkdir -p build
-	$(CC) $(OPTS) src/player_daemon.c $(SHARED_SOURCES)-o build/ffc
+	$(CC) $(OPTS) src/cli.c src/player_client.c $(SHARED_SOURCES) -o build/ffcli
 
 .PHONY: clean
 clean:

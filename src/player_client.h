@@ -16,8 +16,11 @@ struct PlayerClient {
 };
 
 int player_client_connect_to_daemon(struct PlayerClient * player_client);
-int player_client_play(int song_id);
-int player_client_toggle_pause(struct PlayerClient * player_client);
+
+int player_client_play(struct PlayerClient * player_client, int song_id);
+int player_client_pause(struct PlayerClient * player_client);
+int player_client_resume(struct PlayerClient * player_client);
+
 void player_client_disconnect_from_player_daemon(struct PlayerClient * player_client);
 
 #endif

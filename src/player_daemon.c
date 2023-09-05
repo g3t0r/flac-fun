@@ -25,7 +25,7 @@ enum PlayerDaemonAudioStatus {
 struct PlayerDaemon {
   enum PlayerDaemonAudioStatus player_status;
   struct Playback * playback;
-  struct DataMessage message_buffer[FFUN_PLAYBACK_DAEMON_DATA_MESSAGE_SERIES_SIZE];
+  struct DataMessage message_buffer[FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE];
   uint message_series_element_counter;
   sem_t message_series_element_counter_mutex;
   sem_t message_series_data_merge_mutex;
@@ -108,7 +108,7 @@ void player_daemon_handle_data_message(
   player_daemon->message_buffer[message_header->seq] = *data_message;
   player_daemon->message_series_element_counter++;
 
-  if(player_daemon->message_series_element_counter == FFUN_PLAYBACK_DAEMON_DATA_MESSAGE_SERIES_SIZE) {
+  if(player_daemon->message_series_element_counter == FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE) {
     sem_post(&player_daemon->message_series_data_merge_mutex);
   }
 }
@@ -117,7 +117,7 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
 
   struct FeedMeMessage feed_me_message = { FFUN_REQUESTED_DATA_SIZE };
   struct MessageHeader message_header = {
-    FFUN_PLAYBACK_DAEMON_DATA_MESSAGE_SERIES_SIZE,
+    FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE,
     sizeof(message_header) + sizeof(feed_me_message),
     FEED_ME
   };
@@ -140,7 +140,7 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
     clock_gettime(CLOCK_REALTIME, &time_spec);
     time_spec.tv_sec += 3600;
     time_spec.tv_nsec += 1000000 /* nsec in milisec*/
-      * FFUN_PLAYBACK_DAEMON_DATA_MESSAGE_SERIES_TIMEOUT_MS;
+      * FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE;
 
     /*
     if(ETIMEDOUT == sem_timedwait(
@@ -151,7 +151,7 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
     */
 
     sem_wait(&player_daemon->message_series_data_merge_mutex);
-    char message_series_merge_buffer[FFUN_PLAYBACK_DAEMON_DATA_MESSAGE_SERIES_SIZE
+    char message_series_merge_buffer[FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE
       * FFUN_UDP_DGRAM_MAX_SIZE];
 
     int merged_data_size = 0;
