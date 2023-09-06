@@ -44,6 +44,7 @@ struct PlayerDaemon {
 
 void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_daemon);
 void player_daemon_handle_data_message(struct PlayerDaemon * player_daemon, int udp_socket);
+
 int main(int argc, char** argv) {
 
   struct PlayerDaemon player_daemon;
@@ -98,6 +99,11 @@ int main(int argc, char** argv) {
      printError("Error durring poll(), message: %s\n", strerror(errno));
     }
 
+
+    if(poll_fd[POLL_INDEX_TCP].revents & POLLIN) {
+      player_daemon_handle_data_message(&player_daemon, poll_fd[POLL_INDEX_UDP].fd);
+    }
+
     if(poll_fd[POLL_INDEX_UDP].revents & POLLIN) {
       player_daemon_handle_data_message(&player_daemon, poll_fd[POLL_INDEX_UDP].fd);
     }
@@ -105,6 +111,44 @@ int main(int argc, char** argv) {
 
 
   return 0;
+}
+
+
+void player_daemon_handle_control_message(
+    struct PlayerDaemon * player_daemon,
+    int tcp_socket) {
+
+  int read_bytes = 0;
+
+  char * tcp_data_buffer = malloc(MSG_HEADER_SIZE);
+
+  while(read_bytes != MSG_HEADER_SIZE) {
+    read_bytes += recv(tcp_socket, tcp_data_buffer + read_bytes, MSG_HEADER_SIZE - read_bytes);
+  }
+
+  struct MessageHeader header;
+
+  messages_header_deserialize(tcp_data_buffer, &header);
+  free(tcp_data_buffer);
+
+  switch((enum MessageType) header.type) {
+    case MESSAGE_TYPE_PLAY: {
+      // todo handle play message     
+      break;
+    }
+    case MESSAGE_TYPE_PAUSE: {
+    // todo handle pause message
+      break;
+    }
+    case MESSAGE_TYPE_RESUME: {
+    // todo handle pause message
+      break;
+    }
+    default:
+      printError("Not supported message type: %d\n", header.type);
+      break;
+  }
+
 }
 
 void player_daemon_handle_data_message(
