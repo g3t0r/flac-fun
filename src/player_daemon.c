@@ -123,7 +123,7 @@ void player_daemon_handle_control_message(
   char * tcp_data_buffer = malloc(MSG_HEADER_SIZE);
 
   while(read_bytes != MSG_HEADER_SIZE) {
-    read_bytes += recv(tcp_socket, tcp_data_buffer + read_bytes, MSG_HEADER_SIZE - read_bytes);
+    read_bytes += recv(tcp_socket, tcp_data_buffer + read_bytes, MSG_HEADER_SIZE - read_bytes, 0);
   }
 
   struct MessageHeader header;
@@ -132,16 +132,17 @@ void player_daemon_handle_control_message(
   free(tcp_data_buffer);
 
   switch((enum MessageType) header.type) {
-    case MESSAGE_TYPE_PLAY: {
+    case MESSAGE_TYPE_PLAY_SONG: {
       // todo handle play message     
       break;
     }
     case MESSAGE_TYPE_PAUSE: {
-    // todo handle pause message
+      playback_pause(player_daemon->playback);
       break;
     }
     case MESSAGE_TYPE_RESUME: {
     // todo handle pause message
+      playback_resume(player_daemon->playback);
       break;
     }
     default:

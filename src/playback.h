@@ -23,6 +23,7 @@ struct Playback {
     sem_t raw_data_mutex;
     sem_t raw_data_push;
     sem_t raw_data_pull;
+    sem_t pause;
   } semaphores;
   struct CircleBuffer *flac_data_buffer;
   struct CircleBuffer *raw_data_buffer;
@@ -36,5 +37,7 @@ struct Playback {
 int playback_init(struct Playback *playback);
 int playback_start(struct Playback *playback);
 void playback_feed_data(struct Playback * playback, char * data, size_t data_size);
+void playback_pause(struct Playback * playback);
+void playback_resume(struct Playback * playback);
 
 #endif

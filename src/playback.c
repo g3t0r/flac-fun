@@ -50,6 +50,7 @@ int playback_init(struct Playback *playback) {
   sem_init(&playback->semaphores.raw_data_mutex, 0, 1);
   sem_init(&playback->semaphores.raw_data_push, 0, FFUN_FLAC_DATA_BUFF_CAPACITY);
   sem_init(&playback->semaphores.raw_data_pull, 0, 0);
+  sem_init(&playback->semaphores.pause, 0, 1);
 
   playback->flac_data_buffer = circle_buffer_new(FFUN_FLAC_DATA_BUFF_CAPACITY + 1,
                                              FFUN_FLAC_DATA_BUFF_ELEMENT_SIZE);
@@ -87,6 +88,12 @@ void playback_feed_data(struct Playback * playback, char * data, size_t data_siz
   sem_post(&playback->semaphores.flac_data_pull);
 }
 
+void playback_pause(struct Playback * playback) {
+  sem_wait(&playback->semaphores.pause);
+}
+void playback_resume(struct Playback * playback) {
+  sem_post(&playback->semaphores.pause);
+}
 
 /* private */
 static void *playback_audio_thread_fn(struct Playback *playback) {
@@ -99,7 +106,9 @@ static void *playback_audio_thread_fn(struct Playback *playback) {
     struct CircleBufferEntry *entry =
         circle_buffer_read(playback->raw_data_buffer);
 
+    sem_wait(&playback->semaphores.pause);
     ao_play(playback->ao_info.device, entry->data, entry->size);
+    sem_post(&playback->semaphores.pause);
 
     sem_post(&playback->semaphores.raw_data_mutex);
     sem_post(&playback->semaphores.raw_data_push);
