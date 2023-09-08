@@ -44,6 +44,7 @@ struct PlayerDaemon {
 
 void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_daemon);
 void player_daemon_handle_data_message(struct PlayerDaemon * player_daemon, int udp_socket);
+void player_daemon_handle_control_message( struct PlayerDaemon * player_daemon, int tcp_socket);
 
 int main(int argc, char** argv) {
 
@@ -62,8 +63,16 @@ int main(int argc, char** argv) {
   inet_aton("0.0.0.0",
       &player_daemon.sock_addr.sin_addr);
 
-  bind(player_daemon.socket, (struct sockaddr *) &player_daemon.sock_addr,
-      sizeof(struct sockaddr_in));
+  if(bind(player_daemon.socket, (struct sockaddr *) &player_daemon.sock_addr,
+      sizeof(struct sockaddr_in)) == -1) {
+    printError("Problem with binding tcp socket: %s\n", strerror(errno));
+    exit(1);
+  }
+
+  if(listen(player_daemon.socket, 20)) {
+    printError("Problem with listening on tcp socket: %s\n", strerror(errno));
+    exit(1);
+  }
 
   // udp socket
   player_daemon.content_server.socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -92,16 +101,14 @@ int main(int argc, char** argv) {
      (void * (*)(void *)) playback_start, player_daemon.playback);
 
   while(1) {
-    print_debug("Listener loop iteration\n");
     int poll_result = poll(poll_fd, 2, -1);
 
     if(poll_result == -1) {
      printError("Error durring poll(), message: %s\n", strerror(errno));
     }
 
-
     if(poll_fd[POLL_INDEX_TCP].revents & POLLIN) {
-      player_daemon_handle_data_message(&player_daemon, poll_fd[POLL_INDEX_UDP].fd);
+      player_daemon_handle_control_message(&player_daemon, poll_fd[POLL_INDEX_TCP].fd);
     }
 
     if(poll_fd[POLL_INDEX_UDP].revents & POLLIN) {
