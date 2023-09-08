@@ -130,6 +130,8 @@ void player_daemon_handle_control_message(
   char * tcp_data_buffer = malloc(MSG_HEADER_SIZE);
 
   while(read_bytes != MSG_HEADER_SIZE) {
+    // todo fix, as it returns -1
+    // probably becasue it's TCP and forget to "ACCEPT" connection
     read_bytes += recv(tcp_socket, tcp_data_buffer + read_bytes, MSG_HEADER_SIZE - read_bytes, 0);
   }
 
@@ -144,11 +146,12 @@ void player_daemon_handle_control_message(
       break;
     }
     case MESSAGE_TYPE_PAUSE: {
+      print_debug("Pause command\n");
       playback_pause(player_daemon->playback);
       break;
     }
     case MESSAGE_TYPE_RESUME: {
-    // todo handle pause message
+      print_debug("Resume command\n");
       playback_resume(player_daemon->playback);
       break;
     }
@@ -175,8 +178,6 @@ void player_daemon_handle_data_message(
   if(header.type != DATA) {
     printError("Not supported yet\n");
   }
-
-  print_debug("Received data message\n");
 
   messages_data_msg_deserialize(udp_data_buffer + header_size,
       player_daemon->message_buffer + player_daemon->message_series_element_counter);
@@ -240,12 +241,10 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
 
     player_daemon->message_series_element_counter = 0;
 
-    print_debug("before feeding data\n");
     playback_feed_data(
         player_daemon->playback,
         message_series_merge_buffer,
         merged_data_size);
-    print_debug("after feeding data\n");
   }
 
   return NULL;
