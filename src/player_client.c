@@ -58,8 +58,8 @@ int player_client_play(struct PlayerClient * player_client, int song_id) {
 
   struct MessageHeader header = {
     0,
-    MESSAGE_TYPE_PLAY_SONG,
-    sizeof(struct MessageHeader)
+    sizeof(struct MessageHeader),
+    MESSAGE_TYPE_PLAY_SONG
   };
 
   struct PlaySongMessage message;
@@ -83,8 +83,8 @@ int player_client_pause(struct PlayerClient * player_client) {
 
   struct MessageHeader header = {
     0,
-    MESSAGE_TYPE_PAUSE,
-    sizeof(struct MessageHeader)
+    sizeof(struct MessageHeader),
+    MESSAGE_TYPE_PAUSE
   };
 
   char udp_data[FFUN_UDP_DGRAM_MAX_SIZE];
@@ -105,8 +105,8 @@ int player_client_resume(struct PlayerClient * player_client) {
 
   struct MessageHeader header = {
     0,
-    MESSAGE_TYPE_RESUME,
-    sizeof(struct MessageHeader)
+    sizeof(struct MessageHeader),
+    MESSAGE_TYPE_RESUME
   };
 
   char udp_data[FFUN_UDP_DGRAM_MAX_SIZE];

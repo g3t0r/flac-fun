@@ -129,10 +129,13 @@ void player_daemon_handle_control_message(
 
   char * tcp_data_buffer = malloc(MSG_HEADER_SIZE);
 
+  struct sockaddr_in client_sockaddr;
+  socklen_t client_sockaddr_size;
+  int accepted_socket =  accept(tcp_socket, (struct sockaddr *) &client_sockaddr, &client_sockaddr_size);
   while(read_bytes != MSG_HEADER_SIZE) {
     // todo fix, as it returns -1
     // probably becasue it's TCP and forget to "ACCEPT" connection
-    read_bytes += recv(tcp_socket, tcp_data_buffer + read_bytes, MSG_HEADER_SIZE - read_bytes, 0);
+    read_bytes += recv(accepted_socket, tcp_data_buffer + read_bytes, MSG_HEADER_SIZE - read_bytes, 0);
   }
 
   struct MessageHeader header;

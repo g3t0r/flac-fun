@@ -24,6 +24,7 @@ struct Playback {
     sem_t raw_data_push;
     sem_t raw_data_pull;
     sem_t pause;
+    sem_t pause_mutex;
   } semaphores;
   struct CircleBuffer *flac_data_buffer;
   struct CircleBuffer *raw_data_buffer;
