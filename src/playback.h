@@ -33,6 +33,7 @@ struct Playback {
   void *args;
   FLAC__StreamDecoder *decoder;
   int socket;
+  int playing;
 };
 
 int playback_init(struct Playback *playback);

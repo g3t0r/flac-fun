@@ -52,6 +52,7 @@ int playback_init(struct Playback *playback) {
   sem_init(&playback->semaphores.raw_data_pull, 0, 0);
   sem_init(&playback->semaphores.pause, 0, 1);
   sem_init(&playback->semaphores.pause_mutex, 0, 1);
+  playback->playing = 0;
 
   playback->flac_data_buffer = circle_buffer_new(FFUN_FLAC_DATA_BUFF_CAPACITY + 1,
                                              FFUN_FLAC_DATA_BUFF_ELEMENT_SIZE);
@@ -69,6 +70,7 @@ int playback_start(struct Playback *playback) {
 
   pthread_t audio_thread;
 
+  playback->playing = 1;
   pthread_create(&audio_thread, NULL, (void *(*)(void *))playback_audio_thread_fn,
                  playback);
 
@@ -90,11 +92,17 @@ void playback_feed_data(struct Playback * playback, char * data, size_t data_siz
 }
 
 void playback_pause(struct Playback * playback) {
-  int value;
+  if(!playback->playing) {
+    return;
+  }
+  playback->playing = 0;
   sem_wait(&playback->semaphores.pause);
 }
 void playback_resume(struct Playback * playback) {
-  int value;
+  if(playback->playing) {
+    return;
+  }
+  playback->playing = 1;
   sem_post(&playback->semaphores.pause);
 }
 

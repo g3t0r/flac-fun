@@ -133,8 +133,6 @@ void player_daemon_handle_control_message(
   socklen_t client_sockaddr_size;
   int accepted_socket =  accept(tcp_socket, (struct sockaddr *) &client_sockaddr, &client_sockaddr_size);
   while(read_bytes != MSG_HEADER_SIZE) {
-    // todo fix, as it returns -1
-    // probably becasue it's TCP and forget to "ACCEPT" connection
     read_bytes += recv(accepted_socket, tcp_data_buffer + read_bytes, MSG_HEADER_SIZE - read_bytes, 0);
   }
 
