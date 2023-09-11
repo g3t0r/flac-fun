@@ -19,6 +19,8 @@
 
 static void *playback_audio_thread_fn(struct Playback *playback);
 
+static void *playback_data_stream_thread_fn(struct Playback *playback);
+
 static FLAC__StreamDecoderWriteStatus flac_stream_decoder_write_cb(
     const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame,
     const FLAC__int32 *const *buffer, void *client_data);
@@ -68,13 +70,12 @@ int playback_init(struct Playback *playback) {
 
 int playback_start(struct Playback *playback) {
 
-  pthread_t audio_thread;
-
   playback->playing = 1;
-  pthread_create(&audio_thread, NULL, (void *(*)(void *))playback_audio_thread_fn,
+  pthread_create(&playback->threads.audio, NULL, (void *(*)(void *))playback_audio_thread_fn,
                  playback);
 
-  FLAC__stream_decoder_process_until_end_of_stream(playback->decoder);
+  pthread_create(&playback->threads.data_stream, NULL,
+                 (void *(*)(void *)) playback_data_stream_thread_fn, playback);
 
   return 0;
 }
@@ -98,6 +99,7 @@ void playback_pause(struct Playback * playback) {
   playback->playing = 0;
   sem_wait(&playback->semaphores.pause);
 }
+
 void playback_resume(struct Playback * playback) {
   if(playback->playing) {
     return;
@@ -106,11 +108,22 @@ void playback_resume(struct Playback * playback) {
   sem_post(&playback->semaphores.pause);
 }
 
+void playback_stop(struct Playback * playback) {
+  playback->stop = 1;
+  pthread_join(playback->threads.audio, NULL);
+  print_debug("Joined audio thread\n");
+  pthread_join(playback->threads.data_stream, NULL);
+  print_debug("Joined data_stream thread\n");
+}
+
 /* private */
 static void *playback_audio_thread_fn(struct Playback *playback) {
 
   print_debug("Starting audio playback loop\n");
   while (1) {
+    if(playback->stop) {
+      return NULL;
+    }
     sem_wait(&playback->semaphores.raw_data_pull);
     sem_wait(&playback->semaphores.raw_data_mutex);
 
@@ -128,11 +141,22 @@ static void *playback_audio_thread_fn(struct Playback *playback) {
   return NULL;
 }
 
+static void *playback_data_stream_thread_fn(struct Playback *playback) {
+  FLAC__stream_decoder_process_until_end_of_stream(playback->decoder);
+  return NULL;
+}
+
 static FLAC__StreamDecoderWriteStatus flac_stream_decoder_write_cb(
     const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame,
     const FLAC__int32 *const *buffer, void *client_data) {
 
+
   struct Playback *playback = (struct Playback *)client_data;
+
+  if(playback->stop) {
+    return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
+  }
+
   ao_sample_format *format = &playback->ao_info.format;
   uint32_t block_size = frame->header.blocksize;
   uint32_t number_of_channels = format->channels;
@@ -179,6 +203,11 @@ flac_stream_decoder_read_cb(const FLAC__StreamDecoder *decoder,
 
   struct Playback *playback = (struct Playback *)client_data;
 
+  if(playback->stop) {
+    print_debug("read_cb: stop is true\n");
+    *bytes = 0;
+    return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
+  }
   sem_wait(&playback->semaphores.flac_data_pull);
   sem_wait(&playback->semaphores.flac_data_mutex);
 

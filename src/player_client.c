@@ -123,6 +123,28 @@ int player_client_resume(struct PlayerClient * player_client) {
   return 0;
 }
 
+int player_client_stop(struct PlayerClient * player_client) {
+
+  struct MessageHeader header = {
+    0,
+    sizeof(struct MessageHeader),
+    MESSAGE_TYPE_STOP
+  };
+
+  char udp_data[FFUN_UDP_DGRAM_MAX_SIZE];
+
+  int udp_data_size =  messages_header_serialize(&header, udp_data);
+
+
+  send(
+      player_client->conn_info.socket,
+      udp_data,
+      udp_data_size,
+      0);
+
+  return 0;
+}
+
 
 void player_client_disconnect_from_player_daemon(struct PlayerClient * player_client) {
   close(player_client->conn_info.socket);

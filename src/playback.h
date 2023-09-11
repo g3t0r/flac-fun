@@ -26,6 +26,10 @@ struct Playback {
     sem_t pause;
     sem_t pause_mutex;
   } semaphores;
+  struct {
+    pthread_t audio;
+    pthread_t data_stream;
+  } threads;
   struct CircleBuffer *flac_data_buffer;
   struct CircleBuffer *raw_data_buffer;
   struct AOInfo ao_info;
@@ -34,6 +38,7 @@ struct Playback {
   FLAC__StreamDecoder *decoder;
   int socket;
   int playing;
+  int stop;
 };
 
 int playback_init(struct Playback *playback);
@@ -41,5 +46,6 @@ int playback_start(struct Playback *playback);
 void playback_feed_data(struct Playback * playback, char * data, size_t data_size);
 void playback_pause(struct Playback * playback);
 void playback_resume(struct Playback * playback);
+void playback_stop(struct Playback * playback);
 
 #endif

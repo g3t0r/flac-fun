@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 static const char COMMAND_PLAY[] = "play";
 static const char COMMAND_PAUSE[] = "pause";
 static const char COMMAND_RESUME[] = "resume";
+static const char COMMAND_STOP[] = "stop";
 
 int main(int argc, char** argv) {
 
@@ -26,12 +28,21 @@ int main(int argc, char** argv) {
 
   } else if(!strncmp(*(argv+1), COMMAND_PAUSE, sizeof(COMMAND_PAUSE))) {
 
+    print_debug("Received pause command\n");
     player_client_pause(&player_client);
 
   } else if(!strncmp(*(argv+1), COMMAND_RESUME, sizeof(COMMAND_RESUME))) {
 
+    print_debug("Received resume command\n");
     player_client_resume(&player_client);
 
+  } else if(!strncmp(*(argv+1), COMMAND_STOP, sizeof(COMMAND_PAUSE))) {
+
+    print_debug("Received stop command\n");
+    player_client_stop(&player_client);
+
+  } else {
+    assert(0 && "Unsupported command");
   }
 
   player_client_disconnect_from_player_daemon(&player_client);

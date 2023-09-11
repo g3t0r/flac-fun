@@ -92,13 +92,12 @@ int main(int argc, char** argv) {
   pthread_t data_request_loop_tid;
   pthread_create(&data_request_loop_tid, NULL,
       (void * (*)(void *))player_daemon_request_data_loop_thread_fn,
-      &player_daemon);
+                 &player_daemon);
 
   player_daemon.playback = malloc(sizeof(struct Playback));
   playback_init(player_daemon.playback);
-  pthread_t playback_t;
-  pthread_create(&playback_t, NULL,
-     (void * (*)(void *)) playback_start, player_daemon.playback);
+  playback_start(player_daemon.playback);
+  print_debug("After playback start\n");
 
   while(1) {
     int poll_result = poll(poll_fd, 2, -1);
@@ -125,6 +124,7 @@ void player_daemon_handle_control_message(
     struct PlayerDaemon * player_daemon,
     int tcp_socket) {
 
+  print_debug("Received message on TCP, more info soon\n");
   int read_bytes = 0;
 
   char * tcp_data_buffer = malloc(MSG_HEADER_SIZE);
@@ -134,6 +134,10 @@ void player_daemon_handle_control_message(
   int accepted_socket =  accept(tcp_socket, (struct sockaddr *) &client_sockaddr, &client_sockaddr_size);
   while(read_bytes != MSG_HEADER_SIZE) {
     read_bytes += recv(accepted_socket, tcp_data_buffer + read_bytes, MSG_HEADER_SIZE - read_bytes, 0);
+    if(read_bytes == 0) {
+      print_debug("Client disconnected\n");
+      return;
+    }
   }
 
   struct MessageHeader header;
@@ -143,7 +147,8 @@ void player_daemon_handle_control_message(
 
   switch((enum MessageType) header.type) {
     case MESSAGE_TYPE_PLAY_SONG: {
-      // todo handle play message     
+      print_debug("Play song\n");
+      // TODO sending message to content server, to pass song id
       break;
     }
     case MESSAGE_TYPE_PAUSE: {
@@ -154,6 +159,11 @@ void player_daemon_handle_control_message(
     case MESSAGE_TYPE_RESUME: {
       print_debug("Resume command\n");
       playback_resume(player_daemon->playback);
+      break;
+    }
+    case MESSAGE_TYPE_STOP: {
+      print_debug("Stop command\n");
+      playback_stop(player_daemon->playback);
       break;
     }
     default:
