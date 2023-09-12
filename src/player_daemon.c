@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -89,15 +90,8 @@ int main(int argc, char** argv) {
   poll_fd[POLL_INDEX_TCP].events = POLLIN;
 
 
-  pthread_t data_request_loop_tid;
-  pthread_create(&data_request_loop_tid, NULL,
-      (void * (*)(void *))player_daemon_request_data_loop_thread_fn,
-                 &player_daemon);
-
   player_daemon.playback = malloc(sizeof(struct Playback));
   playback_init(player_daemon.playback);
-  playback_start(player_daemon.playback);
-  print_debug("After playback start\n");
 
   while(1) {
     int poll_result = poll(poll_fd, 2, -1);
@@ -149,6 +143,14 @@ void player_daemon_handle_control_message(
     case MESSAGE_TYPE_PLAY_SONG: {
       print_debug("Play song\n");
       // TODO sending message to content server, to pass song id
+      pthread_t data_request_loop_tid;
+      pthread_create(&data_request_loop_tid, NULL,
+                     (void * (*)(void *))player_daemon_request_data_loop_thread_fn,
+                     player_daemon);
+
+      playback_start(player_daemon->playback);
+
+      print_debug("After playback start\n");
       break;
     }
     case MESSAGE_TYPE_PAUSE: {
@@ -193,11 +195,13 @@ void player_daemon_handle_data_message(
   messages_data_msg_deserialize(udp_data_buffer + header_size,
       player_daemon->message_buffer + player_daemon->message_series_element_counter);
 
+  sem_wait(&player_daemon->message_series_element_counter_mutex);
   player_daemon->message_series_element_counter++;
 
   if(player_daemon->message_series_element_counter == FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE) {
     sem_post(&player_daemon->message_series_data_merge_mutex);
   }
+  sem_post(&player_daemon->message_series_element_counter_mutex);
 }
 
 void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_daemon) {
@@ -225,24 +229,31 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
 
     struct timespec time_spec;
     clock_gettime(CLOCK_REALTIME, &time_spec);
-    time_spec.tv_sec += 3600;
-    time_spec.tv_nsec += 1000000 /* nsec in milisec*/
+    print_debug("Time spec: %lus %luns\n", time_spec.tv_sec, time_spec.tv_nsec);
+    time_spec.tv_nsec += 20000000
       * FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE;
+    print_debug("Time spec: %lus %luns\n", time_spec.tv_sec, time_spec.tv_nsec);
 
-    /*
-    if(ETIMEDOUT == sem_timedwait(
+    time_spec.tv_sec += time_spec.tv_nsec / 1000000000;
+    time_spec.tv_nsec %= 1000000000;
+    print_debug("Time spec: %lus %luns\n", time_spec.tv_sec, time_spec.tv_nsec);
+
+    if(-1 == sem_timedwait(
           &player_daemon->message_series_data_merge_mutex,
           &time_spec)) {
-      printVerbose("message_series_data_merge_mutex timed out\n");
+      printError("timedwait error: (%d), %s\n", errno, strerror(errno));
     }
-    */
 
-    sem_wait(&player_daemon->message_series_data_merge_mutex);
+    //sem_wait(&player_daemon->message_series_data_merge_mutex);
     char message_series_merge_buffer[FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE
       * FFUN_UDP_DGRAM_MAX_SIZE];
 
     int merged_data_size = 0;
+    assert(player_daemon->message_series_element_counter != 0);
     for(int i = 0; i < player_daemon->message_series_element_counter; i++) {
+      if((player_daemon->message_buffer + i)->dataSize == 0) {
+        print_debug("Detected 0 size at index: %d\n", i);
+      }
       memcpy(message_series_merge_buffer + merged_data_size,
           (player_daemon->message_buffer + i)->data,
           (player_daemon->message_buffer + i)->dataSize);
@@ -250,8 +261,12 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
       merged_data_size += (player_daemon->message_buffer + i)->dataSize;
     }
 
+    sem_wait(&player_daemon->message_series_element_counter_mutex);
     player_daemon->message_series_element_counter = 0;
+    sem_post(&player_daemon->message_series_element_counter_mutex);
 
+    print_debug("Merged data size: %d\n", merged_data_size);
+    assert(merged_data_size != 0);
     playback_feed_data(
         player_daemon->playback,
         message_series_merge_buffer,

@@ -84,6 +84,7 @@ void playback_feed_data(struct Playback * playback, char * data, size_t data_siz
   sem_wait(&playback->semaphores.flac_data_push);
   sem_wait(&playback->semaphores.flac_data_mutex);
 
+  assert(data_size != 0 && "read_cb");
   struct CircleBufferEntry * entry =
     circle_buffer_write(playback->flac_data_buffer, data, data_size);
   assert(entry != NULL);
@@ -189,6 +190,7 @@ static FLAC__StreamDecoderWriteStatus flac_stream_decoder_write_cb(
   sem_wait(&playback->semaphores.raw_data_push);
   sem_wait(&playback->semaphores.raw_data_mutex);
 
+  assert(buffer_size != 0 && "write_cb");
   circle_buffer_write(playback->raw_data_buffer, output_buffer, buffer_size);
   sem_post(&playback->semaphores.raw_data_mutex);
   sem_post(&playback->semaphores.raw_data_pull);

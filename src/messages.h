@@ -6,6 +6,7 @@
 
 #define MSG_HEADER_SIZE 5
 #define MSG_FEED_ME_SIZE 2
+#define MSG_PLAY_SONG_SIZE 4
 
 enum MessageType { HEARTBEAT,
   DATA,

@@ -57,9 +57,10 @@ int player_client_connect_to_daemon(struct PlayerClient * player_client) {
 int player_client_play(struct PlayerClient * player_client, int song_id) {
 
   struct MessageHeader header = {
-    0,
-    sizeof(struct MessageHeader),
-    MESSAGE_TYPE_PLAY_SONG
+  0,
+  sizeof(struct MessageHeader)
+  + sizeof(struct PlaySongMessage),
+  MESSAGE_TYPE_PLAY_SONG
   };
 
   struct PlaySongMessage message;
@@ -68,13 +69,13 @@ int player_client_play(struct PlayerClient * player_client, int song_id) {
 
   int udp_data_size = messages_header_serialize(&header, udp_data);
   udp_data_size += messages_play_song_msg_serialize(&message,
-      udp_data + udp_data_size);
+                                                    udp_data + udp_data_size);
 
   send(
-      player_client->conn_info.socket,
-      udp_data,
-      udp_data_size,
-      0);
+    player_client->conn_info.socket,
+    udp_data,
+    udp_data_size,
+    0);
 
   return 0;
 }
