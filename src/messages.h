@@ -25,12 +25,12 @@ struct MessageHeader {
 };
 
 struct DataMessage {
-  uint32_t dataSize;
+  uint32_t data_size;
   char *data;
 };
 
 struct FeedMeMessage {
-  uint16_t dataSize;
+  uint16_t data_size;
 };
 
 struct PlaySongMessage {

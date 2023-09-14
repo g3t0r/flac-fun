@@ -66,11 +66,11 @@ uint32_t messages_header_deserialize(const char *const buffer,
  */
 uint32_t messages_data_msg_serialize(const struct DataMessage *const message,
                               char *buffer) {
-  int written_bytes = bytes_buffer_write_int(buffer, &message->dataSize,
-                                          sizeof(message->dataSize));
+  int written_bytes = bytes_buffer_write_int(buffer, &message->data_size,
+                                          sizeof(message->data_size));
 
-  memcpy(buffer + written_bytes, message->data, message->dataSize);
-  written_bytes += message->dataSize;
+  memcpy(buffer + written_bytes, message->data, message->data_size);
+  written_bytes += message->data_size;
 
   return written_bytes;
 }
@@ -87,12 +87,12 @@ uint32_t messages_data_msg_serialize(const struct DataMessage *const message,
 uint32_t messages_data_msg_deserialize(const char *const buffer,
                                 struct DataMessage *message) {
 
-  int read_bytes = bytes_buffer_read_int(&message->dataSize, buffer,
-                                        sizeof(message->dataSize));
+  int read_bytes = bytes_buffer_read_int(&message->data_size, buffer,
+                                        sizeof(message->data_size));
 
-  message->data = malloc(sizeof(char) * message->dataSize);
-  memcpy(message->data, buffer + read_bytes, message->dataSize);
-  read_bytes += message->dataSize;
+  message->data = malloc(sizeof(char) * message->data_size);
+  memcpy(message->data, buffer + read_bytes, message->data_size);
+  read_bytes += message->data_size;
 
   return read_bytes;
 }
@@ -102,19 +102,19 @@ uint32_t messages_data_msg_deserialize(const char *const buffer,
  *          including memory pointed by DataMessage.data
  */
 uint32_t messages_data_msg_get_length_bytes(const struct DataMessage *const message) {
-  return sizeof(message->dataSize) + message->dataSize * sizeof(char);
+  return sizeof(message->data_size) + message->data_size * sizeof(char);
 }
 
 uint16_t messages_feed_me_msg_serialize(const struct FeedMeMessage *message,
                                 char *buffer) {
-  return bytes_buffer_write_int(buffer, &message->dataSize,
-                              sizeof(message->dataSize));
+  return bytes_buffer_write_int(buffer, &message->data_size,
+                              sizeof(message->data_size));
 }
 
 uint16_t messages_feed_me_msg_deserialize(const char *const buffer,
                                   struct FeedMeMessage *message) {
-  return bytes_buffer_read_int(&message->dataSize, buffer,
-                               sizeof(message->dataSize));
+  return bytes_buffer_read_int(&message->data_size, buffer,
+                               sizeof(message->data_size));
 }
 
 uint32_t messages_play_song_msg_serialize(

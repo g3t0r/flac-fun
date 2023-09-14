@@ -251,14 +251,14 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
     int merged_data_size = 0;
     assert(player_daemon->message_series_element_counter != 0);
     for(int i = 0; i < player_daemon->message_series_element_counter; i++) {
-      if((player_daemon->message_buffer + i)->dataSize == 0) {
+      if((player_daemon->message_buffer + i)->data_size == 0) {
         print_debug("Detected 0 size at index: %d\n", i);
       }
       memcpy(message_series_merge_buffer + merged_data_size,
           (player_daemon->message_buffer + i)->data,
-          (player_daemon->message_buffer + i)->dataSize);
+          (player_daemon->message_buffer + i)->data_size);
 
-      merged_data_size += (player_daemon->message_buffer + i)->dataSize;
+      merged_data_size += (player_daemon->message_buffer + i)->data_size;
     }
 
     sem_wait(&player_daemon->message_series_element_counter_mutex);

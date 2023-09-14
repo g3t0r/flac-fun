@@ -174,9 +174,9 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
   int sentBytes = 0;
   for (int i = 0; i < receivedHeader->seq; i++) {
 
-    dataMessage.data = malloc(sizeof(char) * receivedMessage->dataSize);
-    dataMessage.dataSize =
-        fread(dataMessage.data, sizeof(char), receivedMessage->dataSize,
+    dataMessage.data = malloc(sizeof(char) * receivedMessage->data_size);
+    dataMessage.data_size =
+        fread(dataMessage.data, sizeof(char), receivedMessage->data_size,
               serverContext->openedFile);
     header.size = messages_data_msg_get_length_bytes(&dataMessage);
     header.type = DATA;
@@ -188,7 +188,7 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
     uint16_t headerSize = messages_header_serialize(&header, buffer);
     uint messageSize = messages_data_msg_serialize(&dataMessage, buffer + headerSize);
 
-    fwrite(dataMessage.data, sizeof(char), dataMessage.dataSize, debugFile);
+    fwrite(dataMessage.data, sizeof(char), dataMessage.data_size, debugFile);
 
     free(dataMessage.data);
 

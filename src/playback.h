@@ -33,7 +33,7 @@ struct Playback {
   struct CircleBuffer *flac_data_buffer;
   struct CircleBuffer *raw_data_buffer;
   struct AOInfo ao_info;
-  void (*feedMeCb)(void *args, char **data, size_t *dataSize);
+  void (*feedMeCb)(void *args, char **data, size_t *data_size);
   void *args;
   FLAC__StreamDecoder *decoder;
   int socket;
