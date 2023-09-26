@@ -1,5 +1,6 @@
 #include "server.h"
 #include "config.h"
+#include "logs.h"
 #include "messages.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
@@ -20,6 +21,21 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <dirent.h>
+
+struct {
+  char music_dir_path[1024];
+  size_t number_of_albums;
+} MusicCollectionInfo;
+
+struct {
+  size_t album_id;
+  size_t number_of_songs;
+} AlbumInfo;
+
+const char MUSIC_LIBRARY_PATH[] = "/tmp/music";
+
+void initializeLibrary();
 
 static void initializeServer(struct ServerContext *serverContext);
 
@@ -31,6 +47,8 @@ FILE *debugFile;
 
 int main(int argc, char **argv) {
 
+  initializeLibrary();
+  return 0;
   struct ServerContext serverContext;
   initializeServer(&serverContext);
   printf("sd: %u\n", serverContext.socket);
@@ -205,4 +223,47 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
   }
 
   return 0;
+}
+
+void initializeLibrary() {
+  DIR * music_dir = opendir(MUSIC_LIBRARY_PATH);
+  size_t music_dir_len = strlen(MUSIC_LIBRARY_PATH);
+  char path_buffer[3*265];
+
+  memcpy(path_buffer, MUSIC_LIBRARY_PATH, music_dir_len);
+  path_buffer[music_dir_len] = '/';
+
+  if(music_dir == NULL) {
+    printError("Error on opening music library dir: %s\n", strerror(errno));
+  }
+
+  struct dirent * dir;
+  errno = 0;
+  struct dirent * album;
+  while((dir = readdir(music_dir))) {
+    if(dir->d_name[0] == '.') {
+      continue;
+    }
+    memcpy(path_buffer + music_dir_len + 1, dir->d_name, 256);
+    DIR * album_dir = opendir(path_buffer);
+    path_buffer[music_dir_len + 1 + strlen(dir->d_name)] = '/';
+    if(album_dir == NULL) {
+      printError("Error on opening album dir: %s\n", strerror(errno));
+    }
+    while((album = readdir(album_dir)) != NULL) {
+      if(strncmp(album->d_name + strlen(album->d_name) - 4, "flac", 4)) {
+        continue;
+      }
+
+      memcpy(path_buffer + music_dir_len + 1 + strlen(dir->d_name) + 1,
+             album->d_name, 256);
+
+      print_debug("%s\n", path_buffer);
+    }
+  }
+
+  print_debug("Initialize library: end of loop\n");
+  if(errno != 0) {
+    printError("Error while iterating directory: %s\n", strerror(errno));
+  }
 }
