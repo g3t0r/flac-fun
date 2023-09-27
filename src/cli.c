@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
   if(!strncmp(*(argv+1), COMMAND_PLAY, sizeof(COMMAND_PLAY))) {
 
     if(argc < 3) {
-      printError("Missing song id\n");
+      print_error("Missing song id\n");
       exit(1);
     }
     int song_id = atoi(*(argv+2));

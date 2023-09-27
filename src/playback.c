@@ -252,6 +252,6 @@ static void flac_stream_decoder_metadata_cb(const FLAC__StreamDecoder *decoder,
 static void flac_stream_decoder_error_cb(const FLAC__StreamDecoder *decoder,
                                   FLAC__StreamDecoderErrorStatus status,
                                   void *client_data) {
-  printError("Stream decoder error, status: %d\n", status);
+  print_error("Stream decoder error, status: %d\n", status);
 }
 

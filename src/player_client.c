@@ -13,7 +13,7 @@
 int player_client_connect_to_daemon(struct PlayerClient * player_client) {
   player_client->conn_info.socket = socket(AF_INET, SOCK_STREAM, 0);
   if(player_client->conn_info.socket == -1) {
-    printError("Problem while creating socket: %s\n",
+    print_error("Problem while creating socket: %s\n",
         strerror(errno));
     exit(1);
   }
@@ -28,7 +28,7 @@ int player_client_connect_to_daemon(struct PlayerClient * player_client) {
         (struct sockaddr *) &player_client->conn_info.sock_addr,
         sizeof(struct sockaddr_in))) {
 
-    printError("Problem while binding socket: %s\n",
+    print_error("Problem while binding socket: %s\n",
         strerror(errno));
     exit(1);
   }
@@ -44,7 +44,7 @@ int player_client_connect_to_daemon(struct PlayerClient * player_client) {
         (struct sockaddr *) &player_client->player_daemon.sock_addr,
         sizeof(struct sockaddr_in))) {
 
-    printError("Problem while connecting to player_daemon: %s\n",
+    print_error("Problem while connecting to player_daemon: %s\n",
         strerror(errno));
     exit(1);
   }

@@ -9,12 +9,12 @@
 #endif
 
 #ifdef FFUN_LOG_LEVEL_ENABLED_VERBOSE
-#define printVerbose(...) printf(__VA_ARGS__)
+#define print_verbose(...) printf(__VA_ARGS__)
 #else 
-#define printVerbose(...)
+#define print_verbose(...)
 #endif
 
-#define printInfo(...) printf(__VA_ARGS__)
-#define printError(...) printf(__VA_ARGS__)
+#define print_info(...) printf(__VA_ARGS__)
+#define print_error(...) printf(__VA_ARGS__)
 
 #endif

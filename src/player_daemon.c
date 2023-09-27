@@ -66,12 +66,12 @@ int main(int argc, char** argv) {
 
   if(bind(player_daemon.socket, (struct sockaddr *) &player_daemon.sock_addr,
       sizeof(struct sockaddr_in)) == -1) {
-    printError("Problem with binding tcp socket: %s\n", strerror(errno));
+    print_error("Problem with binding tcp socket: %s\n", strerror(errno));
     exit(1);
   }
 
   if(listen(player_daemon.socket, 20)) {
-    printError("Problem with listening on tcp socket: %s\n", strerror(errno));
+    print_error("Problem with listening on tcp socket: %s\n", strerror(errno));
     exit(1);
   }
 
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
     int poll_result = poll(poll_fd, 2, -1);
 
     if(poll_result == -1) {
-     printError("Error durring poll(), message: %s\n", strerror(errno));
+     print_error("Error durring poll(), message: %s\n", strerror(errno));
     }
 
     if(poll_fd[POLL_INDEX_TCP].revents & POLLIN) {
@@ -169,7 +169,7 @@ void player_daemon_handle_control_message(
       break;
     }
     default:
-      printError("Not supported message type: %d\n", header.type);
+      print_error("Not supported message type: %d\n", header.type);
       break;
   }
 
@@ -183,13 +183,13 @@ void player_daemon_handle_data_message(
   ssize_t read_bytes = read(udp_socket, udp_data_buffer, FFUN_UDP_DGRAM_MAX_SIZE);
 
   if(read_bytes == -1) {
-    printError("Error durring read(), message: %s\n", strerror(errno));
+    print_error("Error durring read(), message: %s\n", strerror(errno));
   }
 
   struct MessageHeader header;
   size_t header_size = messages_header_deserialize(udp_data_buffer, &header);
   if(header.type != DATA) {
-    printError("Not supported yet\n");
+    print_error("Not supported yet\n");
   }
 
   messages_data_msg_deserialize(udp_data_buffer + header_size,
@@ -241,7 +241,7 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
     if(-1 == sem_timedwait(
           &player_daemon->message_series_data_merge_mutex,
           &time_spec)) {
-      printError("timedwait error: (%d), %s\n", errno, strerror(errno));
+      print_error("timedwait error: (%d), %s\n", errno, strerror(errno));
     }
 
     //sem_wait(&player_daemon->message_series_data_merge_mutex);
