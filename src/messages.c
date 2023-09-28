@@ -171,3 +171,14 @@ uint32_t messages_album_list_msg_resp_deserialize(const char * const buffer,
 
   return read_bytes;
 }
+
+uint32_t messages_album_list_msg_get_length_bytes(const struct AlbumListMessage * const message) {
+  uint32_t bytes_total = sizeof(message->size);
+  struct AlbumListEntry * entry = message->album_list;
+  while(entry - message->album_list < message->size) {
+    bytes_total += sizeof(entry->album_id)
+      + sizeof(entry->album_name_size)
+      + entry->album_name_size;
+  }
+  return bytes_total;
+}

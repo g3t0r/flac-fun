@@ -129,4 +129,10 @@ uint32_t messages_album_list_msg_get_serialize(char * buffer,
 uint32_t messages_album_list_msg_resp_serialize(char * buffer,
     const struct AlbumListMessage * const message);
 
+uint32_t messages_album_list_msg_resp_deserialize(const char * const buffer,
+                                                  struct AlbumListMessage * message);
+
+uint32_t messages_album_list_msg_get_length_bytes(
+  const struct AlbumListMessage * const message);
+
 #endif // SIMPLE_MESSAGES_H_
