@@ -52,7 +52,7 @@ struct Library {
 
 struct Library * library_init();
 
-struct Albums * library_albums();
+struct Albums * library_albums(struct Library * library);
 
 void library_album_songs(struct Library * library, size_t album_id);
 
@@ -69,6 +69,7 @@ FILE *debugFile;
 int main(int argc, char **argv) {
 
   struct Library * library = library_init();
+  library_albums(library);
   library_album_songs(library, 0);
   return 0;
   struct ServerContext serverContext;
@@ -346,11 +347,18 @@ struct Library * library_init() {
   return library;
 }
 
+struct Albums * library_albums(struct Library * library) {
+  for(int i = 0; i < library->album_list->size; i++) {
+    print_debug("album: %s\n", library->album_list->items[i].name);
+  }
+  return NULL;
+}
+
 void library_album_songs(struct Library * library, size_t album_id) {
   struct AlbumEntry * album = library->album_list->items + album_id;
   for(int i = 0; i < album->album_size; i++) {
     struct SongEntry * song = library->song_list->items + album->first_song_id + i;
-    print_debug("%s\n", song->name);
+    print_debug("song: %s\n", song->name);
   }
 
 }

@@ -24,6 +24,7 @@ struct MessageHeader {
   uint8_t type;
 };
 
+
 struct DataMessage {
   uint32_t data_size;
   char *data;
@@ -35,6 +36,17 @@ struct FeedMeMessage {
 
 struct PlaySongMessage {
   uint32_t song_id;
+};
+
+struct AlbumListEntry {
+  uint32_t album_id;
+  uint32_t album_name_size;
+  char album_name[256];
+};
+
+struct AlbumListMessage {
+  uint32_t size;
+  struct AlbumListEntry * album_list;
 };
 
 /**
@@ -109,5 +121,12 @@ uint32_t messages_play_song_msg_serialize(
 
 uint32_t messages_play_song_msg_deserialize(const char * const buffer,
     struct PlaySongMessage * message);
+
+// TODO: IMPLEMENT
+uint32_t messages_album_list_msg_get_serialize(char * buffer,
+    const struct AlbumListMessage * const message);
+
+uint32_t messages_album_list_msg_resp_serialize(char * buffer,
+    const struct AlbumListMessage * const message);
 
 #endif // SIMPLE_MESSAGES_H_
