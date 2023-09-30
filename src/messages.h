@@ -32,6 +32,12 @@ struct DataMessage {
 
 struct FeedMeMessage {
   uint16_t data_size;
+  /*
+   * TODO serialization and deserialization
+   * Right now value is copied from header.seq
+   * It can be changed later
+   * */
+  uint8_t segments_n;
 };
 
 struct PlaySongMessage {

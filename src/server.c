@@ -49,6 +49,22 @@ struct Library {
   struct Songs * song_list;
 };
 
+struct Server {
+
+  // right now only single client support
+  FILE * opened_file;
+
+  struct {
+    int socket;
+    struct sockaddr_in addr;
+  } udp_info;
+
+  struct {
+    int socket;
+    struct sockaddr_in addr;
+  } tcp_info;
+
+};
 
 struct Library * library_init();
 
@@ -58,84 +74,98 @@ void library_album_songs(struct Library * library, size_t album_id);
 
 const char MUSIC_LIBRARY_PATH[] = "/tmp/music";
 
-static void initializeServer(struct ServerContext *serverContext);
+static void server_init(struct Server * server);
 
 static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct ClientContext *clientContext,
                                struct MessageHeader *header,
                                struct FeedMeMessage *message);
+
+struct HandleFeedMeMsgFuncArgs {
+  struct sockaddr_in client_sockaddr;
+  ssize_t client_sockaddr_size;
+  struct FeedMeMessage message;
+};
+
 FILE *debugFile;
 
 int main(int argc, char **argv) {
 
-  struct Library * library = library_init();
-  library_albums(library);
-  library_album_songs(library, 0);
-  return 0;
-  struct ServerContext serverContext;
-  initializeServer(&serverContext);
-  printf("sd: %u\n", serverContext.socket);
+  struct Server server;
+  server_init(&server);
+  print_debug("sd: %u\n", server.udp_info.socket);
   debugFile = fopen("./audio/server.data.bin", "wb");
 
-  while (1) {
-    printf("Inside loop\n");
-    struct sockaddr_in *connAddrIn = malloc(sizeof(struct sockaddr_in));
-    socklen_t connSockAddrLen;
+  char message_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
-    struct pollfd pollFileDescriptor;
-    pollFileDescriptor.fd = serverContext.socket;
-    pollFileDescriptor.events = POLLIN;
+  while (1) {
+    print_debug("Inside loop\n");
+
+    struct pollfd server_socket_pollfd;
+    server_socket_pollfd.fd = server.udp_info.socket;
+    server_socket_pollfd.events = POLLIN;
 
     nfds_t nfds = 1;
 
-    int result = poll(&pollFileDescriptor, nfds, -1);
-    printf("Results: %d, R-events: %d\n", result, pollFileDescriptor.revents);
+    int result = poll(&server_socket_pollfd, nfds, -1);
+    print_debug("Results: %d, R-events: %d\n", result, server_socket_pollfd.revents);
 
     if (result == -1) {
-      printf("Error with poll\n");
-      close(serverContext.socket);
+      print_error("Error with poll\n");
+      close(server.udp_info.socket);
     }
 
-    if (pollFileDescriptor.revents & POLLNVAL) {
-      printf("Incorrect poll request\n");
-    } else if (pollFileDescriptor.revents & POLLERR) {
-      printf("Socket hung up\n");
+    if (server_socket_pollfd.revents & POLLNVAL) {
+      print_error("Incorrect poll request\n");
+    } else if (server_socket_pollfd.revents & POLLERR) {
+      print_error("Socket hung up\n");
     }
 
-    if (result > 0 && (pollFileDescriptor.revents & POLLIN) != 0) {
-      struct ClientContext *clientContext =
-          malloc(sizeof(struct ClientContext));
-
-      clientContext->clientAddrSize = sizeof(struct sockaddr_in);
-
-      char *buffer = malloc(sizeof(char) * FFUN_UDP_DGRAM_MAX_SIZE);
-      int readBytes = recvfrom(pollFileDescriptor.fd, (void *)buffer,
-                               FFUN_UDP_DGRAM_MAX_SIZE, 0,
-                               (struct sockaddr *)&clientContext->clientAddr,
-                               &clientContext->clientAddrSize);
-
-      printf("ReadBytes: %u\n", readBytes);
-
-      if (readBytes == 0) {
-        break;
-      }
-
-      struct HandleClientArgs *handleClientArgs =
-          malloc(sizeof(struct HandleClientArgs));
-
-      handleClientArgs->rawMessageSize = readBytes;
-      handleClientArgs->rawMessage = buffer;
-
-      handleClientArgs->clientContext = clientContext;
-      handleClientArgs->serverContext = &serverContext;
-
-      pthread_t thread;
-      pthread_create(&thread, NULL, (void *(*)(void *))handleClient,
-                     handleClientArgs);
+    if(result == 0) {
+      continue;
     }
+
+    if ((server_socket_pollfd.revents & POLLIN) == 0) {
+      continue;
+    }
+
+    struct sockaddr_in client_sockaddr;
+    struct ssize_t client_sockaddr_size;
+
+    int read_bytes = recvfrom(server.udp_info.socket,
+                              message_buffer,
+                              FFUN_UDP_DGRAM_MAX_SIZE,
+                              &client_sockaddr,
+                              &client_sockaddr_size);
+
+    struct MessageHeader * message_header = malloc(sizeof *message_header);
+    struct HandleFeedMeMsgFuncArgs * handle_feed_me_msg_args
+      = malloc(*handle_feed_me_msg_args);
+
+    read_bytes = messages_header_deserialize(message_buffer, message_header);
+
+    if(header.type != DATA) {
+      print_error("Unsupported message type on UDP socket: %d\n", header.type);
+      continue;
+    }
+    messages_feed_me_msg_deserialize(message_buffer + read_bytes,
+                                     handle_feed_me_msg_args->message);
+
+    /*
+     * TODO: Remove this workaround after serialization of
+     * segments_n field is added;
+     * */
+
+    handle_feed_me_msg_args->message.segments_n = message_header.seq;
+
+    pthread_t tid;
+    pthread_create(&tid, NULL, void *(*)(void *) handle_feed_me_msg_fn,
+                   handle_feed_me_msg_args);
+
   }
 }
 
+void * handle_feed_me_msg_fn(struct HandleFeedMeMsgArgs * args) {}
 
 void initializeServer(struct ServerContext *serverContext) {
 
