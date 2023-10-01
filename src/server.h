@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "messages.h"
 
 enum { FFUN_SERVER_DEFAULT_PORT = 8080 };
 

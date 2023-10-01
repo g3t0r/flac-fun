@@ -81,7 +81,7 @@ const char MUSIC_LIBRARY_PATH[] = "/tmp/music";
 
 static void server_udp_socket_init(struct Server * server);
 
-void * handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args);
+static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args);
 
 static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct ClientContext *clientContext,
@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
 
     read_bytes = messages_header_deserialize(message_buffer, message_header);
 
-    if(message_header->type != DATA) {
+    if(message_header->type != FEED_ME) {
       print_error("Unsupported message type on UDP socket: %d\n",
                   message_header->type);
       continue;
@@ -160,6 +160,7 @@ int main(int argc, char **argv) {
      * */
 
     handle_feed_me_msg_args->message.segments_n = message_header->seq;
+    handle_feed_me_msg_args->message.song_id = 0;
 
     pthread_t tid;
     pthread_create(&tid, NULL, (void *(*)(void *)) handle_feed_me_msg_fn,
@@ -184,16 +185,16 @@ void server_udp_socket_init(struct Server * server) {
   server->udp_info.addr.sin_port = htons(FFUN_SERVER_DEFAULT_PORT);
 
   inet_pton(AF_INET, (const char *) &FFUN_SERVER_DEFAULT_IP,
-            server->udp_info.addr.sin_addr.s_addr);
+            &server->udp_info.addr.sin_addr.s_addr);
 
   server->udp_info.addr.sin_addr.s_addr
     = htonl(server->udp_info.addr.sin_addr.s_addr);
 
 
   if(bind(server->udp_info.socket,
-          (struct sockaddr *) server->udp_info.addr,
-          server->udp_info.addr
-     )) {
+          (struct sockaddr *) &server->udp_info.addr,
+          sizeof(server->udp_info.addr))) {
+
     printf("Problem binding socket: %s\n", strerror(errno));
     exit(1);
   }
@@ -207,15 +208,16 @@ void server_udp_socket_init(struct Server * server) {
 static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
 
   struct Server * server = args->server;
-  struct FeedMeMessage * feed_me_message = args->message;
+  struct FeedMeMessage * feed_me_message = &args->message;
   struct Library * library = &server->library;
 
   if(server->current_song_id != feed_me_message->song_id) {
     if(server->opened_file != NULL) {
       fclose(server->opened_file);
     }
-    char * absolute_song_path = library_song_build_path(library.library_path,
-                                                        feed_me_message->song_id);
+
+    char * absolute_song_path
+      = library_song_build_path(library, feed_me_message->song_id);
 
     server->opened_file = fopen(absolute_song_path, "rb");
     server->current_song_id = feed_me_message->song_id;
@@ -225,42 +227,42 @@ static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
   usleep(10 * 1000);
 
   struct MessageHeader header;
-  struct DataMessage dataMessage;
+  struct DataMessage data_message;
 
-  int sentBytes = 0;
-  for (int i = 0; i < receivedHeader->seq; i++) {
+  int sent_bytes = 0;
+  for (int i = 0; i < feed_me_message->segments_n; i++) {
 
-    dataMessage.data = malloc(sizeof(char) * received_message->data_size);
-    dataMessage.data_size =
-        fread(dataMessage.data, sizeof(char), received_message->data_size,
-              serverContext->openedFile);
-    header.size = messages_data_msg_get_length_bytes(&dataMessage);
+    data_message.data = malloc(sizeof(char) * feed_me_message->data_size);
+    data_message.data_size =
+        fread(data_message.data, sizeof(char), feed_me_message->data_size,
+              server->opened_file);
+    header.size = messages_data_msg_get_length_bytes(&data_message);
     header.type = DATA;
     header.seq = i;
 
     char buffer[FFUN_UDP_DGRAM_MAX_SIZE];
 
-    assert((char *)&header.type != dataMessage.data + 8);
-    uint16_t headerSize = messages_header_serialize(&header, buffer);
-    uint messageSize = messages_data_msg_serialize(&dataMessage, buffer + headerSize);
+    assert((char *)&header.type != data_message.data + 8);
+    uint16_t header_size = messages_header_serialize(&header, buffer);
+    uint data_message_size = messages_data_msg_serialize(&data_message, buffer + header_size);
 
-    fwrite(dataMessage.data, sizeof(char), dataMessage.data_size, debugFile);
+    fwrite(data_message.data, sizeof(char), data_message.data_size, debugFile);
 
-    free(dataMessage.data);
+    free(data_message.data);
 
-    int currentSend =
-        sendto(serverContext->socket, buffer, (headerSize + messageSize), 0,
-               (const struct sockaddr *)&clientContext->clientAddr,
-               clientContext->clientAddrSize);
-    sentBytes += currentSend;
+    sent_bytes += sendto(server->udp_info.socket,
+                         buffer,
+                         (header_size + data_message_size),
+                         0,
+                         (const struct sockaddr *) &args->client_sockaddr,
+                         args->client_sockaddr_size);
   }
 
-  printf("Sent bytes: %d\n", sentBytes);
-  if (sentBytes == -1) {
+  printf("Sent bytes: %d\n", sent_bytes);
+  if (sent_bytes == -1) {
     printf("error: %s\n", strerror(errno));
   }
 
-  return 0;
 }
 
 struct Library * library_init() {
