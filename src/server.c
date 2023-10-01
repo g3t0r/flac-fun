@@ -44,27 +44,32 @@ struct Songs {
   struct SongEntry * items;
 };
 
-struct Library {
-  struct Albums * album_list;
-  struct Songs * song_list;
-};
+char * library_song_build_path(struct Library * library, size_t song_id) {
 
-struct Server {
+  struct SongEntry * song = (library->song_list->items + song_id);
+  struct AlbumEntry * album = (library->album_list->items + song->album_id);
+  char * library_path = library->library_path;
 
-  // right now only single client support
-  FILE * opened_file;
+  int library_path_size = strlen(library_path);
+  int album_name_size = strlen(album->name);
+  int song_name_size = strlen(song->name) + 1; // \0
 
-  struct {
-    int socket;
-    struct sockaddr_in addr;
-  } udp_info;
+  char * absolute_song_path = malloc(library_path_size
+                                 + 2 /* 2x '/' */
+                                 + album_name_size
+                                 + song_name_size);
 
-  struct {
-    int socket;
-    struct sockaddr_in addr;
-  } tcp_info;
+  memcpy(absolute_song_path, library_path, library_path_size);
+  absolute_song_path[library_path_size] = '/';
 
-};
+  memcpy(absolute_song_path + library_path_size + 1, album->name, album_name_size);
+  absolute_song_path[library_path_size + 1 + album_name_size] = '/';
+
+  memcpy(absolute_song_path + library_path_size + 1 + album_name_size + 1,
+         song->name, song_name_size);
+
+  return absolute_song_path;
+}
 
 struct Library * library_init();
 
@@ -74,25 +79,21 @@ void library_album_songs(struct Library * library, size_t album_id);
 
 const char MUSIC_LIBRARY_PATH[] = "/tmp/music";
 
-static void server_init(struct Server * server);
+static void server_udp_socket_init(struct Server * server);
+
+void * handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args);
 
 static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct ClientContext *clientContext,
                                struct MessageHeader *header,
                                struct FeedMeMessage *message);
 
-struct HandleFeedMeMsgFuncArgs {
-  struct sockaddr_in client_sockaddr;
-  ssize_t client_sockaddr_size;
-  struct FeedMeMessage message;
-};
-
 FILE *debugFile;
 
 int main(int argc, char **argv) {
 
   struct Server server;
-  server_init(&server);
+  server_udp_socket_init(&server);
   print_debug("sd: %u\n", server.udp_info.socket);
   debugFile = fopen("./audio/server.data.bin", "wb");
 
@@ -130,110 +131,94 @@ int main(int argc, char **argv) {
     }
 
     struct sockaddr_in client_sockaddr;
-    struct ssize_t client_sockaddr_size;
+    socklen_t client_sockaddr_size;
 
     int read_bytes = recvfrom(server.udp_info.socket,
                               message_buffer,
                               FFUN_UDP_DGRAM_MAX_SIZE,
-                              &client_sockaddr,
+                              0,
+                              (struct sockaddr *) &client_sockaddr,
                               &client_sockaddr_size);
 
     struct MessageHeader * message_header = malloc(sizeof *message_header);
     struct HandleFeedMeMsgFuncArgs * handle_feed_me_msg_args
-      = malloc(*handle_feed_me_msg_args);
+      = malloc(sizeof *handle_feed_me_msg_args);
 
     read_bytes = messages_header_deserialize(message_buffer, message_header);
 
-    if(header.type != DATA) {
-      print_error("Unsupported message type on UDP socket: %d\n", header.type);
+    if(message_header->type != DATA) {
+      print_error("Unsupported message type on UDP socket: %d\n",
+                  message_header->type);
       continue;
     }
     messages_feed_me_msg_deserialize(message_buffer + read_bytes,
-                                     handle_feed_me_msg_args->message);
+                                     &handle_feed_me_msg_args->message);
 
     /*
      * TODO: Remove this workaround after serialization of
      * segments_n field is added;
      * */
 
-    handle_feed_me_msg_args->message.segments_n = message_header.seq;
+    handle_feed_me_msg_args->message.segments_n = message_header->seq;
 
     pthread_t tid;
-    pthread_create(&tid, NULL, void *(*)(void *) handle_feed_me_msg_fn,
+    pthread_create(&tid, NULL, (void *(*)(void *)) handle_feed_me_msg_fn,
                    handle_feed_me_msg_args);
 
   }
 }
 
-void * handle_feed_me_msg_fn(struct HandleFeedMeMsgArgs * args) {}
-
-void initializeServer(struct ServerContext *serverContext) {
-
-  int sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (sd == -1) {
+void server_udp_socket_init(struct Server * server) {
+  server->udp_info.socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if(server->udp_info.socket == -1) {
     printf("Problem creating socket: %s\n", strerror(errno));
     exit(1);
   }
 
-  int optValue = 1;
-  setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &optValue, sizeof(int));
 
-  struct sockaddr_in addrIn;
-  addrIn.sin_family = AF_INET;
-  addrIn.sin_port = htons(FFUN_SERVER_DEFAULT_PORT);
-  inet_pton(AF_INET, (const char *)&FFUN_SERVER_DEFAULT_IP,
-            &addrIn.sin_addr.s_addr);
-  addrIn.sin_addr.s_addr = htonl(addrIn.sin_addr.s_addr);
+  int opt_value = 1;
+  setsockopt(server->udp_info.socket, SOL_SOCKET, SO_REUSEADDR,
+             &opt_value, sizeof(int));
 
-  int result = bind(sd, (const struct sockaddr *)&addrIn, sizeof(addrIn));
-  if (result != 0) {
+  server->udp_info.addr.sin_family = AF_INET;
+  server->udp_info.addr.sin_port = htons(FFUN_SERVER_DEFAULT_PORT);
+
+  inet_pton(AF_INET, (const char *) &FFUN_SERVER_DEFAULT_IP,
+            server->udp_info.addr.sin_addr.s_addr);
+
+  server->udp_info.addr.sin_addr.s_addr
+    = htonl(server->udp_info.addr.sin_addr.s_addr);
+
+
+  if(bind(server->udp_info.socket,
+          (struct sockaddr *) server->udp_info.addr,
+          server->udp_info.addr
+     )) {
     printf("Problem binding socket: %s\n", strerror(errno));
     exit(1);
   }
 
-  serverContext->socket = sd;
-  serverContext->openedFile = NULL;
+  print_info("Server started on port %d with PID %u\n",
+             FFUN_SERVER_DEFAULT_PORT,
+             getpid());
 
-  printf("Started server on port %d with PID %u\n", ntohs(addrIn.sin_port),
-         getpid());
 }
 
-void *handleClient(struct HandleClientArgs *args) {
+static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
 
-  printf("Hello from thread tid=%uf\n", (unsigned int)pthread_self());
-  int readBytes = 0;
-  struct MessageHeader *header = malloc(sizeof(struct MessageHeader));
+  struct Server * server = args->server;
+  struct FeedMeMessage * feed_me_message = args->message;
+  struct Library * library = &server->library;
 
-  readBytes = messages_header_deserialize(args->rawMessage, header);
+  if(server->current_song_id != feed_me_message->song_id) {
+    if(server->opened_file != NULL) {
+      fclose(server->opened_file);
+    }
+    char * absolute_song_path = library_song_build_path(library.library_path,
+                                                        feed_me_message->song_id);
 
-  switch ((enum MessageType)header->type) {
-  case FEED_ME: {
-
-    struct FeedMeMessage *message = malloc(sizeof(struct FeedMeMessage));
-    messages_feed_me_msg_deserialize(args->rawMessage + readBytes, message);
-    free(args->rawMessage);
-    args->rawMessage = NULL;
-    handleFeedMeMessage(args->serverContext, args->clientContext, header,
-                        message);
-    free(message);
-    break;
-  }
-
-  default:
-    printf("Can't handle that man\n");
-    break;
-  }
-
-  return 0;
-}
-
-static int handleFeedMeMessage(struct ServerContext *serverContext,
-                               struct ClientContext *clientContext,
-                               struct MessageHeader *receivedHeader,
-                               struct FeedMeMessage *receivedMessage) {
-
-  if (serverContext->openedFile == NULL) {
-    serverContext->openedFile = fopen("./audio/1.flac", "rb");
+    server->opened_file = fopen(absolute_song_path, "rb");
+    server->current_song_id = feed_me_message->song_id;
   }
 
   // latency simulation
@@ -245,9 +230,9 @@ static int handleFeedMeMessage(struct ServerContext *serverContext,
   int sentBytes = 0;
   for (int i = 0; i < receivedHeader->seq; i++) {
 
-    dataMessage.data = malloc(sizeof(char) * receivedMessage->data_size);
+    dataMessage.data = malloc(sizeof(char) * received_message->data_size);
     dataMessage.data_size =
-        fread(dataMessage.data, sizeof(char), receivedMessage->data_size,
+        fread(dataMessage.data, sizeof(char), received_message->data_size,
               serverContext->openedFile);
     header.size = messages_data_msg_get_length_bytes(&dataMessage);
     header.type = DATA;
@@ -386,9 +371,9 @@ struct Albums * library_albums(struct Library * library) {
 
 void library_album_songs(struct Library * library, size_t album_id) {
   struct AlbumEntry * album = library->album_list->items + album_id;
+
   for(int i = 0; i < album->album_size; i++) {
     struct SongEntry * song = library->song_list->items + album->first_song_id + i;
     print_debug("song: %s\n", song->name);
   }
-
 }

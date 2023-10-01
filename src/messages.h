@@ -38,6 +38,7 @@ struct FeedMeMessage {
    * It can be changed later
    * */
   uint8_t segments_n;
+  uint32_t song_id;
 };
 
 struct PlaySongMessage {
