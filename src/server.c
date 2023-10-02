@@ -44,6 +44,12 @@ struct Songs {
   struct SongEntry * items;
 };
 
+void print_sockaddr(struct sockaddr_in * sockaddr) {
+  print_debug("sin_family: %u\n", sockaddr->sin_family);
+  print_debug("sin_port: %u\n", ntohs(sockaddr->sin_port));
+  print_debug("ip: %s\n", inet_ntoa(sockaddr->sin_addr));
+}
+
 char * library_song_build_path(struct Library * library, size_t song_id) {
 
   struct SongEntry * song = (library->song_list->items + song_id);
@@ -71,7 +77,7 @@ char * library_song_build_path(struct Library * library, size_t song_id) {
   return absolute_song_path;
 }
 
-struct Library * library_init();
+struct Library * library_init(struct Library * library);
 
 struct Albums * library_albums(struct Library * library);
 
@@ -94,6 +100,8 @@ int main(int argc, char **argv) {
 
   struct Server server;
   server_udp_socket_init(&server);
+  library_init(&server.library);
+  server.current_song_id = -1;
   print_debug("sd: %u\n", server.udp_info.socket);
   debugFile = fopen("./audio/server.data.bin", "wb");
 
@@ -130,19 +138,25 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    struct sockaddr_in client_sockaddr;
-    socklen_t client_sockaddr_size;
+    struct HandleFeedMeMsgFuncArgs * handle_feed_me_msg_args
+      = malloc(sizeof *handle_feed_me_msg_args);
+
+    handle_feed_me_msg_args->client_sockaddr_size = sizeof(struct sockaddr_in);
+
 
     int read_bytes = recvfrom(server.udp_info.socket,
                               message_buffer,
                               FFUN_UDP_DGRAM_MAX_SIZE,
                               0,
-                              (struct sockaddr *) &client_sockaddr,
-                              &client_sockaddr_size);
+                              (struct sockaddr *)
+                              &handle_feed_me_msg_args->client_sockaddr,
+                              &handle_feed_me_msg_args->client_sockaddr_size);
+
+    print_sockaddr(&handle_feed_me_msg_args->client_sockaddr);
 
     struct MessageHeader * message_header = malloc(sizeof *message_header);
-    struct HandleFeedMeMsgFuncArgs * handle_feed_me_msg_args
-      = malloc(sizeof *handle_feed_me_msg_args);
+
+    handle_feed_me_msg_args->server = &server;
 
     read_bytes = messages_header_deserialize(message_buffer, message_header);
 
@@ -212,14 +226,21 @@ static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
   struct Library * library = &server->library;
 
   if(server->current_song_id != feed_me_message->song_id) {
+    print_debug("Different song_id\n");
     if(server->opened_file != NULL) {
+      print_debug("opened_file not NULL\n");
       fclose(server->opened_file);
     }
 
     char * absolute_song_path
       = library_song_build_path(library, feed_me_message->song_id);
 
+    print_debug("Song file path: %s\n", absolute_song_path);
+
     server->opened_file = fopen(absolute_song_path, "rb");
+    if(server->opened_file == NULL) {
+      print_error("Error while opening file: %s\n", strerror(errno));
+    }
     server->current_song_id = feed_me_message->song_id;
   }
 
@@ -234,8 +255,8 @@ static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
 
     data_message.data = malloc(sizeof(char) * feed_me_message->data_size);
     data_message.data_size =
-        fread(data_message.data, sizeof(char), feed_me_message->data_size,
-              server->opened_file);
+      fread(data_message.data, sizeof(char), feed_me_message->data_size,
+            server->opened_file);
     header.size = messages_data_msg_get_length_bytes(&data_message);
     header.type = DATA;
     header.seq = i;
@@ -250,12 +271,20 @@ static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
 
     free(data_message.data);
 
-    sent_bytes += sendto(server->udp_info.socket,
-                         buffer,
-                         (header_size + data_message_size),
-                         0,
-                         (const struct sockaddr *) &args->client_sockaddr,
-                         args->client_sockaddr_size);
+    assert(args->client_sockaddr_size == sizeof(struct sockaddr_in));
+
+    ssize_t sendto_result = sendto(server->udp_info.socket,
+                                   buffer,
+                                   (header_size + data_message_size),
+                                   0,
+                                   (struct sockaddr *)
+                                   &args->client_sockaddr,
+                                   sizeof(struct sockaddr_in));
+
+    if(sendto_result < 0) {
+      print_error("Error while sending message: %s\n", strerror(errno));
+    }
+
   }
 
   printf("Sent bytes: %d\n", sent_bytes);
@@ -265,7 +294,8 @@ static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
 
 }
 
-struct Library * library_init() {
+struct Library * library_init(struct Library * library) {
+  library->library_path = (char *) MUSIC_LIBRARY_PATH;
   DIR * music_dir = opendir(MUSIC_LIBRARY_PATH);
   size_t music_dir_len = strlen(MUSIC_LIBRARY_PATH);
   char path_buffer[3*265];
@@ -277,7 +307,6 @@ struct Library * library_init() {
     print_error("Error on opening music library dir: %s\n", strerror(errno));
   }
 
-  struct Library * library = malloc(sizeof *library);
   struct Albums * album_list = malloc(sizeof *album_list);
   struct Songs * song_list = malloc(sizeof *song_list);
   album_list->size = 10;

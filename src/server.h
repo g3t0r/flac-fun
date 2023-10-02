@@ -49,7 +49,7 @@ struct HandleClientArgs {
 struct HandleFeedMeMsgFuncArgs {
   struct Server * server;
   struct sockaddr_in client_sockaddr;
-  ssize_t client_sockaddr_size;
+  socklen_t client_sockaddr_size;
   struct FeedMeMessage message;
 };
 
