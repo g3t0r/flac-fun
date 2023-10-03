@@ -84,12 +84,15 @@ const char MUSIC_LIBRARY_PATH[] = "/tmp/music";
 
 static void server_udp_socket_init(struct Server * server);
 
+static void server_udp_socket_listener_fn(struct Server * server);
+
 static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args);
 
 static int handleFeedMeMessage(struct ServerContext *serverContext,
                                struct ClientContext *clientContext,
                                struct MessageHeader *header,
                                struct FeedMeMessage *message);
+
 
 FILE *debugFile;
 
@@ -102,82 +105,14 @@ int main(int argc, char **argv) {
   print_debug("sd: %u\n", server.udp_info.socket);
   debugFile = fopen("./audio/server.data.bin", "wb");
 
-  char message_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
+  pthread_t udp_listener_tid;
 
-  while (1) {
-    print_debug("Inside loop\n");
+  pthread_create(&udp_listener_tid,
+                 NULL,
+                 (void * (*)(void *)) server_udp_socket_listener_fn,
+                 &server);
 
-    struct pollfd server_socket_pollfd;
-    server_socket_pollfd.fd = server.udp_info.socket;
-    server_socket_pollfd.events = POLLIN;
-
-    nfds_t nfds = 1;
-
-    int result = poll(&server_socket_pollfd, nfds, -1);
-    print_debug("Results: %d, R-events: %d\n", result, server_socket_pollfd.revents);
-
-    if (result == -1) {
-      print_error("Error with poll\n");
-      close(server.udp_info.socket);
-    }
-
-    if (server_socket_pollfd.revents & POLLNVAL) {
-      print_error("Incorrect poll request\n");
-    } else if (server_socket_pollfd.revents & POLLERR) {
-      print_error("Socket hung up\n");
-    }
-
-    if(result == 0) {
-      continue;
-    }
-
-    if ((server_socket_pollfd.revents & POLLIN) == 0) {
-      continue;
-    }
-
-    struct HandleFeedMeMsgFuncArgs * handle_feed_me_msg_args
-      = malloc(sizeof *handle_feed_me_msg_args);
-
-    handle_feed_me_msg_args->client_sockaddr_size = sizeof(struct sockaddr_in);
-
-
-    int read_bytes = recvfrom(server.udp_info.socket,
-                              message_buffer,
-                              FFUN_UDP_DGRAM_MAX_SIZE,
-                              0,
-                              (struct sockaddr *)
-                              &handle_feed_me_msg_args->client_sockaddr,
-                              &handle_feed_me_msg_args->client_sockaddr_size);
-
-    print_sockaddr(&handle_feed_me_msg_args->client_sockaddr);
-
-    struct MessageHeader * message_header = malloc(sizeof *message_header);
-
-    handle_feed_me_msg_args->server = &server;
-
-    read_bytes = messages_header_deserialize(message_buffer, message_header);
-
-    if(message_header->type != FEED_ME) {
-      print_error("Unsupported message type on UDP socket: %d\n",
-                  message_header->type);
-      continue;
-    }
-    messages_feed_me_msg_deserialize(message_buffer + read_bytes,
-                                     &handle_feed_me_msg_args->message);
-
-    /*
-     * TODO: Remove this workaround after serialization of
-     * segments_n field is added;
-     * */
-
-    handle_feed_me_msg_args->message.segments_n = message_header->seq;
-    handle_feed_me_msg_args->message.song_id = 0;
-
-    pthread_t tid;
-    pthread_create(&tid, NULL, (void *(*)(void *)) handle_feed_me_msg_fn,
-                   handle_feed_me_msg_args);
-
-  }
+  pthread_join(udp_listener_tid, NULL);
 }
 
 void server_udp_socket_init(struct Server * server) {
@@ -223,6 +158,7 @@ static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
   struct Library * library = &server->library;
 
   if(server->current_song_id != feed_me_message->song_id) {
+
     print_debug("Different song_id\n");
     if(server->opened_file != NULL) {
       print_debug("opened_file not NULL\n");
@@ -403,5 +339,85 @@ void library_album_songs(struct Library * library, size_t album_id) {
   for(int i = 0; i < album->album_size; i++) {
     struct SongEntry * song = library->song_list->items + album->first_song_id + i;
     print_debug("song: %s\n", song->name);
+  }
+}
+
+static void server_udp_socket_listener_fn(struct Server * server) {
+
+  char message_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
+
+  while (1) {
+    print_debug("Inside loop\n");
+
+    struct pollfd server_socket_pollfd;
+    server_socket_pollfd.fd = server->udp_info.socket;
+    server_socket_pollfd.events = POLLIN;
+
+    nfds_t nfds = 1;
+
+    int result = poll(&server_socket_pollfd, nfds, -1);
+    print_debug("Results: %d, R-events: %d\n", result, server_socket_pollfd.revents);
+
+    if (result == -1) {
+      print_error("Error with poll\n");
+      close(server->udp_info.socket);
+    }
+
+    if (server_socket_pollfd.revents & POLLNVAL) {
+      print_error("Incorrect poll request\n");
+    } else if (server_socket_pollfd.revents & POLLERR) {
+      print_error("Socket hung up\n");
+    }
+
+    if(result == 0) {
+      continue;
+    }
+
+    if ((server_socket_pollfd.revents & POLLIN) == 0) {
+      continue;
+    }
+
+    struct HandleFeedMeMsgFuncArgs * handle_feed_me_msg_args
+      = malloc(sizeof *handle_feed_me_msg_args);
+
+    handle_feed_me_msg_args->client_sockaddr_size = sizeof(struct sockaddr_in);
+
+
+    int read_bytes = recvfrom(server->udp_info.socket,
+                              message_buffer,
+                              FFUN_UDP_DGRAM_MAX_SIZE,
+                              0,
+                              (struct sockaddr *)
+                              &handle_feed_me_msg_args->client_sockaddr,
+                              &handle_feed_me_msg_args->client_sockaddr_size);
+
+    print_sockaddr(&handle_feed_me_msg_args->client_sockaddr);
+
+    struct MessageHeader * message_header = malloc(sizeof *message_header);
+
+    handle_feed_me_msg_args->server = server;
+
+    read_bytes = messages_header_deserialize(message_buffer, message_header);
+
+    if(message_header->type != FEED_ME) {
+      print_error("Unsupported message type on UDP socket: %d\n",
+                  message_header->type);
+      continue;
+    }
+    messages_feed_me_msg_deserialize(message_buffer + read_bytes,
+                                     &handle_feed_me_msg_args->message);
+
+    /*
+     * TODO: Remove this workaround after serialization of
+     * segments_n field is added;
+     * */
+
+    handle_feed_me_msg_args->message.segments_n = message_header->seq;
+    handle_feed_me_msg_args->message.song_id = 0;
+
+    pthread_t tid;
+    pthread_create(&tid, NULL, (void *(*)(void *)) handle_feed_me_msg_fn,
+                   handle_feed_me_msg_args);
+
   }
 }
