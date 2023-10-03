@@ -3,12 +3,9 @@
 #include "messages.h"
 #include "logs.h"
 #include <arpa/inet.h>
-#include <asm-generic/socket.h>
 #include <assert.h>
-#include <bits/pthreadtypes.h>
 #include <dirent.h>
 #include <errno.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <pthread.h>
