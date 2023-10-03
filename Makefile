@@ -8,6 +8,7 @@ CC := clang
 SERVER_LIBS := -lpthread -lFLAC
 CLIENT_LIBS := -lFLAC -lao -ldl -lm -lpthread
 CLIENT_SOURCES := src/playback.c src/circle-buffer.c
+SERVER_SOURCES := src/library.c
 SHARED_SOURCES := src/bytes.c src/messages.c
 OPTS := -g -pedantic
 
@@ -16,7 +17,7 @@ default: clean server player_daemon cli
 .PHONY: server
 server:
 	mkdir -p build
-	$(CC) $(OPTS) src/server.c $(SHARED_SOURCES) $(SERVER_LIBS) -o build/server
+	$(CC) $(OPTS) src/server.c $(SERVER_SOURCES) $(SHARED_SOURCES) $(SERVER_LIBS) -o build/server
 
 
 .PHONY: player_daemon

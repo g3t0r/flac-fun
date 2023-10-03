@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "messages.h"
+#include "library.h"
 
 enum { FFUN_SERVER_DEFAULT_PORT = 8080 };
 
@@ -12,12 +13,6 @@ enum { FFUN_SERVER_DEFAULT_CONNECTION_POOL = 5 };
 
 const char FFUN_SERVER_DEFAULT_IP[] = "0.0.0.0";
 const char FFUN_SERVER_MESSAGE_RECEIVED[] = "Server received: %s";
-
-struct Library {
-  char * library_path;
-  struct Albums * album_list;
-  struct Songs * song_list;
-};
 
 struct Server {
 

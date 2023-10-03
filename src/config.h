@@ -21,4 +21,7 @@ static const char FFUN_PLAYER_DAEMON_IP[] = "0.0.0.0";
 #define FFUN_CONTENT_SERVER_PORT_UDP 8080
 static const char FFUN_CONTENT_SERVER_IP[] = "0.0.0.0";
 
+static const char MUSIC_LIBRARY_PATH[] = "/tmp/music";
+
+
 #endif
