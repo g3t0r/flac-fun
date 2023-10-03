@@ -29,35 +29,38 @@ void print_sockaddr(struct sockaddr_in * sockaddr) {
 
 static void server_udp_socket_init(struct Server * server);
 
+static void server_tcp_socket_init(struct Server * server);
+
 static void server_udp_socket_listener_fn(struct Server * server);
 
+static void server_tcp_socket_listener_fn(struct Server * server);
+
 static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args);
-
-static int handleFeedMeMessage(struct ServerContext *serverContext,
-                               struct ClientContext *clientContext,
-                               struct MessageHeader *header,
-                               struct FeedMeMessage *message);
-
-
-FILE *debugFile;
 
 int main(int argc, char **argv) {
 
   struct Server server;
   server_udp_socket_init(&server);
+  server_tcp_socket_init(&server);
   library_init(&server.library);
   server.current_song_id = -1;
   print_debug("sd: %u\n", server.udp_info.socket);
-  debugFile = fopen("./audio/server.data.bin", "wb");
 
   pthread_t udp_listener_tid;
+  pthread_t tcp_listener_tid;
 
   pthread_create(&udp_listener_tid,
                  NULL,
                  (void * (*)(void *)) server_udp_socket_listener_fn,
                  &server);
 
+  pthread_create(&tcp_listener_tid,
+                 NULL,
+                 (void * (*)(void *)) server_tcp_socket_listener_fn,
+                 &server);
+
   pthread_join(udp_listener_tid, NULL);
+  pthread_join(tcp_listener_tid, NULL);
 }
 
 void server_udp_socket_init(struct Server * server) {
@@ -94,6 +97,26 @@ void server_udp_socket_init(struct Server * server) {
              FFUN_SERVER_DEFAULT_PORT,
              getpid());
 
+}
+
+static void server_tcp_socket_init(struct Server * server) {
+  server->tcp_info.socket = socket(AF_INET, SOCK_STREAM, 0);
+  if(server->tcp_info.socket == -1) {
+    print_error("Error while opening tcp socket: %s\n", strerror(errno));
+    exit(1);
+  }
+
+  server->tcp_info.addr.sin_family = AF_INET;
+  server->tcp_info.addr.sin_port = htons(FFUN_CONTENT_SERVER_PORT_TCP);
+  inet_aton(FFUN_CONTENT_SERVER_IP, &server->tcp_info.addr.sin_addr);
+
+  if(bind(server->tcp_info.socket,
+          (struct sockaddr *) &server->tcp_info.addr,
+          sizeof(struct sockaddr_in))) {
+
+    print_error("Error while binding tcp socket: %s\n", strerror(errno));
+    exit(1);
+  }
 }
 
 static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
@@ -144,8 +167,6 @@ static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
     assert((char *)&header.type != data_message.data + 8);
     uint16_t header_size = messages_header_serialize(&header, buffer);
     uint data_message_size = messages_data_msg_serialize(&data_message, buffer + header_size);
-
-    fwrite(data_message.data, sizeof(char), data_message.data_size, debugFile);
 
     free(data_message.data);
 
@@ -251,4 +272,32 @@ static void server_udp_socket_listener_fn(struct Server * server) {
                    handle_feed_me_msg_args);
 
   }
+}
+
+static void server_tcp_socket_listener_fn(struct Server * server) {
+  print_debug("Starting tcp socket\n");
+
+  if(listen(server->tcp_info.socket, 5)) {
+    print_error("Error on listen: %s\n", strerror(errno));
+  }
+
+  struct sockaddr_in client_sockaddr;
+  socklen_t client_sockaddr_size = sizeof(client_sockaddr);
+
+  if(accept(server->tcp_info.socket,
+            (struct sockaddr *) &client_sockaddr,
+            &client_sockaddr_size) == -1) {
+
+    print_error("Error while accepting new connection: \n");
+
+  }
+
+  print_debug("New connection on TCP socket\n");
+  //print_sockaddr(&client_sockaddr);
+
+
+  struct pollfd poll_fd;
+  poll_fd.events = POLLIN;
+  poll_fd.fd = server->tcp_info.socket;
+
 }
