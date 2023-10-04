@@ -19,8 +19,8 @@ struct Library * library_init(struct Library * library) {
     print_error("Error on opening music library dir: %s\n", strerror(errno));
   }
 
-  struct Albums * album_list = malloc(sizeof *album_list);
-  struct Songs * song_list = malloc(sizeof *song_list);
+  struct LibraryAlbums * album_list = malloc(sizeof *album_list);
+  struct LibrarySongs * song_list = malloc(sizeof *song_list);
   album_list->size = 10;
   album_list->items = malloc(10 * sizeof *album_list->items);
   song_list->size = 20;
@@ -106,26 +106,23 @@ struct Library * library_init(struct Library * library) {
 }
 
 
-struct Albums * library_albums(struct Library * library) {
-  for(int i = 0; i < library->album_list->size; i++) {
-    print_debug("album: %s\n", library->album_list->items[i].name);
-  }
-  return NULL;
+struct LibraryAlbums * library_albums(struct Library * library) {
+  return library->album_list;
 }
 
-void library_album_songs(struct Library * library, size_t album_id) {
-  struct AlbumEntry * album = library->album_list->items + album_id;
+struct LibrarySongs * library_album_songs(struct Library * library, size_t album_id) {
+  struct LibraryAlbumEntry * album = library->album_list->items + album_id;
 
-  for(int i = 0; i < album->album_size; i++) {
-    struct SongEntry * song = library->song_list->items + album->first_song_id + i;
-    print_debug("song: %s\n", song->name);
-  }
+  struct LibrarySongs * songs_in_album = malloc(sizeof *songs_in_album);
+  songs_in_album->size = album->album_size;
+  songs_in_album->items = library->song_list->items + album->first_song_id;
+  return songs_in_album;
 }
 
 char * library_song_build_path(struct Library * library, size_t song_id) {
 
-  struct SongEntry * song = (library->song_list->items + song_id);
-  struct AlbumEntry * album = (library->album_list->items + song->album_id);
+  struct LibrarySongEntry * song = (library->song_list->items + song_id);
+  struct LibraryAlbumEntry * album = (library->album_list->items + song->album_id);
   char * library_path = library->library_path;
 
   int library_path_size = strlen(library_path);

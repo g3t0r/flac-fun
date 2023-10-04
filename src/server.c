@@ -35,6 +35,8 @@ static void server_udp_socket_listener_fn(struct Server * server);
 
 static void server_tcp_socket_listener_fn(struct Server * server);
 
+static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args);
+
 static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args);
 
 int main(int argc, char **argv) {
@@ -64,6 +66,7 @@ int main(int argc, char **argv) {
 }
 
 void server_udp_socket_init(struct Server * server) {
+
   server->udp_info.socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if(server->udp_info.socket == -1) {
     printf("Problem creating socket: %s\n", strerror(errno));
@@ -105,6 +108,10 @@ static void server_tcp_socket_init(struct Server * server) {
     print_error("Error while opening tcp socket: %s\n", strerror(errno));
     exit(1);
   }
+
+  int opt_value = 1;
+  setsockopt(server->tcp_info.socket, SOL_SOCKET, SO_REUSEADDR,
+             &opt_value, sizeof(int));
 
   server->tcp_info.addr.sin_family = AF_INET;
   server->tcp_info.addr.sin_port = htons(FFUN_CONTENT_SERVER_PORT_TCP);
@@ -281,23 +288,123 @@ static void server_tcp_socket_listener_fn(struct Server * server) {
     print_error("Error on listen: %s\n", strerror(errno));
   }
 
-  struct sockaddr_in client_sockaddr;
-  socklen_t client_sockaddr_size = sizeof(client_sockaddr);
+  while(1) {
 
-  if(accept(server->tcp_info.socket,
-            (struct sockaddr *) &client_sockaddr,
-            &client_sockaddr_size) == -1) {
+    struct HandleTcpClientConnArgs * client_conn_args
+      = malloc(sizeof *client_conn_args);
 
-    print_error("Error while accepting new connection: \n");
+    client_conn_args->client_sockaddr_size = sizeof(struct sockaddr_in);
+
+    if((client_conn_args->client_socket
+        = accept(server->tcp_info.socket,
+                 (struct sockaddr *)
+                 &client_conn_args->client_sockaddr,
+                 &client_conn_args->client_sockaddr_size)) == -1) {
+
+      print_error("Error while accepting new connection: \n");
+      free(client_conn_args);
+      continue;
+    }
+
+    client_conn_args->server = server;
+
+    print_debug("New connection on TCP socket\n");
+    print_sockaddr(&client_conn_args->client_sockaddr);
+
+    pthread_t client_session_tid;
+    pthread_create(&client_session_tid,
+                   NULL,
+                   (void * (*) (void *)) server_tcp_handle_connection,
+                   client_conn_args);
+  }
+}
+
+static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) {
+  print_debug("Hello from session thread\n");
+
+  struct pollfd client_poll_fd;
+  client_poll_fd.fd = args->client_socket;
+  client_poll_fd.events = POLLIN;
+
+  int client_connected = 1;
+
+  int poll_result;
+  while(client_connected) {
+    poll_result = poll(&client_poll_fd, 1, -1);
+
+    print_debug("poll_result: %d\n", poll_result);
+
+    if(poll_result == 0) {
+      print_debug("Poll result == 0");
+      continue;
+    }
+
+    if(poll_result == -1) {
+      print_error("Poll error on tcp socket: %s\n", strerror(errno));
+      return;
+    }
+
+    if(client_poll_fd.revents & POLLERR) {
+      print_error("POLLERR: %s\n", strerror(errno));
+    }
+
+    if(client_poll_fd.revents & POLLHUP) {
+      print_debug("POLLHUP:\n");
+      break;
+    }
+
+    int read_bytes = 0;
+
+    char buffer[4096];
+    struct MessageHeader header;
+    read_bytes = recv(client_poll_fd.fd, buffer + read_bytes,
+                      sizeof(header) - read_bytes, 0);
+
+    if(header.type == MESSAGE_TYPE_ALBUM_LIST_REQ) {
+      struct LibraryAlbums * lib_album_list = library_albums(&args->server->library);
+      struct AlbumListMessage msg_album_list;
+      msg_album_list.size = lib_album_list->size;
+      msg_album_list.album_list
+        = malloc(lib_album_list->size * sizeof(*msg_album_list.album_list));
+
+      for(int i = 0; i < lib_album_list->size; i++) {
+        struct LibraryAlbumEntry * lib_album_entry = lib_album_list->items + i;
+        struct AlbumListEntry * msg_album_entry = msg_album_list.album_list + 1;
+
+        msg_album_entry->album_id = i;
+        msg_album_entry->album_name_size = strlen(lib_album_entry->name) + 1;
+        msg_album_entry->album_name = lib_album_entry->name;
+      }
+
+      int response_size = sizeof(header)
+        + messages_album_list_msg_get_length_bytes(&msg_album_list);
+
+      char * response_buffer = malloc(response_size);
+      header.seq = 0;
+      header.type = MESSAGE_TYPE_ALBUM_LIST_RESP;
+      int written_bytes = messages_header_serialize(&header, response_buffer);
+
+      written_bytes += messages_album_list_msg_resp_serialize(&msg_album_list,
+                                                             response_buffer
+                                                             + written_bytes);
+
+      for(int i = 0; i < lib_album_list->size; i++) {
+        free(lib_album_list->items + i);
+        free(msg_album_list.album_list + i);
+      }
+
+      int sent_bytes = 0;
+      while(sent_bytes != written_bytes) {
+        sent_bytes += send(args->client_socket,
+                           response_buffer + sent_bytes,
+                           written_bytes - sent_bytes, 0);
+      }
+    }
+
+
+    print_debug("Read_bytes: %d\n", read_bytes);
+
 
   }
-
-  print_debug("New connection on TCP socket\n");
-  //print_sockaddr(&client_sockaddr);
-
-
-  struct pollfd poll_fd;
-  poll_fd.events = POLLIN;
-  poll_fd.fd = server->tcp_info.socket;
-
+  print_debug("Client disconnected\n");
 }

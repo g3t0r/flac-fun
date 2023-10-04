@@ -7,36 +7,36 @@
 
 struct Library {
   char * library_path;
-  struct Albums * album_list;
-  struct Songs * song_list;
+  struct LibraryAlbums * album_list;
+  struct LibrarySongs * song_list;
 };
 
-struct AlbumEntry {
+struct LibraryAlbumEntry {
   size_t first_song_id;
   int album_size;
   char name[256];
 };
 
-struct Albums {
+struct LibraryAlbums {
   size_t size;
-  struct AlbumEntry * items;
+  struct LibraryAlbumEntry * items;
 };
 
-struct SongEntry {
+struct LibrarySongEntry {
   size_t album_id;
   char name[256];
 };
 
-struct Songs {
+struct LibrarySongs {
   size_t size;
-  struct SongEntry * items;
+  struct LibrarySongEntry * items;
 };
 
 struct Library * library_init(struct Library * library);
 
-struct Albums * library_albums(struct Library * library);
+struct LibraryAlbums * library_albums(struct Library * library);
 
-void library_album_songs(struct Library * library, size_t album_id);
+struct LibrarySongs * library_album_songs(struct Library * library, size_t album_id);
 
 char * library_song_build_path(struct Library * library, size_t song_id);
 

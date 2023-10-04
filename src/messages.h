@@ -15,7 +15,10 @@ enum MessageType { HEARTBEAT,
   MESSAGE_TYPE_PAUSE,
   MESSAGE_TYPE_RESUME,
   MESSAGE_TYPE_STOP,
-  MESSAGE_TYPE_OK
+  MESSAGE_TYPE_OK,
+  MESSAGE_TYPE_ALBUM_DETAILS_REQ,
+  MESSAGE_TYPE_ALBUM_LIST_REQ,
+  MESSAGE_TYPE_ALBUM_LIST_RESP
 };
 
 struct MessageHeader {
@@ -48,7 +51,7 @@ struct PlaySongMessage {
 struct AlbumListEntry {
   uint32_t album_id;
   uint32_t album_name_size;
-  char album_name[256];
+  char * album_name;
 };
 
 struct AlbumListMessage {
@@ -133,8 +136,9 @@ uint32_t messages_play_song_msg_deserialize(const char * const buffer,
 uint32_t messages_album_list_msg_get_serialize(char * buffer,
     const struct AlbumListMessage * const message);
 
-uint32_t messages_album_list_msg_resp_serialize(char * buffer,
-    const struct AlbumListMessage * const message);
+uint32_t messages_album_list_msg_resp_serialize(
+  const struct AlbumListMessage * const message,
+  char * buffer);
 
 uint32_t messages_album_list_msg_resp_deserialize(const char * const buffer,
                                                   struct AlbumListMessage * message);

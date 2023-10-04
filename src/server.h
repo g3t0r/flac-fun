@@ -48,5 +48,12 @@ struct HandleFeedMeMsgFuncArgs {
   struct FeedMeMessage message;
 };
 
+struct HandleTcpClientConnArgs {
+  int client_socket;
+  struct Server * server;
+  struct sockaddr_in client_sockaddr;
+  socklen_t client_sockaddr_size;
+};
+
 
 #endif // FFUN_SERVER_H_

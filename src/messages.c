@@ -130,20 +130,24 @@ uint32_t messages_play_song_msg_deserialize(const char * const buffer,
 
 
 uint32_t messages_album_list_msg_resp_serialize
-(char * buffer,
- const struct AlbumListMessage * const message) {
+(const struct AlbumListMessage * const message,
+ char * buffer) {
 
   uint32_t written_bytes = bytes_buffer_write_int(buffer, &message->size, sizeof(message->size));
   for(int i = 0; i < message->size; i++) {
 
-    written_bytes += bytes_buffer_write_int(buffer + written_bytes, &message->album_list[i].album_id,
-                           sizeof(message->album_list[i].album_id));
+    written_bytes += bytes_buffer_write_int(buffer + written_bytes,
+                                            &message->album_list[i].album_id,
+                                            sizeof(message->album_list[i].album_id));
 
-    written_bytes += bytes_buffer_write_int(buffer + written_bytes, &message->album_list[i].album_name_size,
-                           sizeof(message->album_list[i].album_name_size));
+    written_bytes += bytes_buffer_write_int(buffer + written_bytes,
+                                            &message->album_list[i].album_name_size,
+                                            sizeof(message->album_list[i]
+                                                   .album_name_size));
 
-    written_bytes += bytes_buffer_write_int(buffer + written_bytes, &message->album_list[i].album_name,
-                           message->album_list[i].album_name_size);
+    written_bytes += bytes_buffer_write_int(buffer + written_bytes,
+                                            message->album_list[i].album_name,
+                                            message->album_list[i].album_name_size);
   }
   return written_bytes;
 }
@@ -164,7 +168,11 @@ uint32_t messages_album_list_msg_resp_deserialize(const char * const buffer,
     read_bytes += bytes_buffer_read_int(&entry->album_name_size, buffer + read_bytes,
                                         sizeof(entry->album_id));
 
-    memcpy(&entry->album_name, buffer + read_bytes, entry->album_name_size);
+    entry->album_name = malloc(entry->album_name_size);
+
+    memcpy(entry->album_name, buffer + read_bytes, entry->album_name_size);
+
+    read_bytes += entry->album_name_size;
 
     entry++;
   }
