@@ -7,6 +7,7 @@
 #define MSG_HEADER_SIZE 5
 #define MSG_FEED_ME_SIZE 2
 #define MSG_PLAY_SONG_SIZE 4
+#define MSG_ALBUM_SONGS_REQ_SIZE 4
 
 enum MessageType { HEARTBEAT,
   DATA,
@@ -16,7 +17,7 @@ enum MessageType { HEARTBEAT,
   MESSAGE_TYPE_RESUME,
   MESSAGE_TYPE_STOP,
   MESSAGE_TYPE_OK,
-  MESSAGE_TYPE_ALBUM_DETAILS_REQ,
+  MESSAGE_TYPE_ALBUM_SONGS_REQ,
   MESSAGE_TYPE_ALBUM_LIST_REQ,
   MESSAGE_TYPE_ALBUM_LIST_RESP
 };
@@ -57,6 +58,21 @@ struct AlbumListEntry {
 struct AlbumListMessage {
   uint32_t size;
   struct AlbumListEntry * album_list;
+};
+
+struct AlbumSongItem {
+  uint32_t song_id;
+  uint8_t song_name_size;
+  char * song_name;
+};
+
+struct AlbumSongsRespMessage {
+  uint32_t size;
+  struct AlbumSongItem * items;
+};
+
+struct AlbumSongsReqMessage {
+  uint32_t song_id;
 };
 
 /**
@@ -132,18 +148,35 @@ uint32_t messages_play_song_msg_serialize(
 uint32_t messages_play_song_msg_deserialize(const char * const buffer,
     struct PlaySongMessage * message);
 
-// TODO: IMPLEMENT
-uint32_t messages_album_list_msg_get_serialize(char * buffer,
-    const struct AlbumListMessage * const message);
-
-uint32_t messages_album_list_msg_resp_serialize(
+uint32_t messages_album_list_resp_msg_serialize(
   const struct AlbumListMessage * const message,
   char * buffer);
 
-uint32_t messages_album_list_msg_resp_deserialize(const char * const buffer,
+uint32_t messages_album_list_resp_msg_deserialize(const char * const buffer,
                                                   struct AlbumListMessage * message);
 
-uint32_t messages_album_list_msg_get_length_bytes(
+uint32_t messages_album_list_resp_msg_get_length_bytes(
   const struct AlbumListMessage * const message);
+
+uint32_t messages_album_songs_req_msg_serialize(
+  const struct AlbumSongsReqMessage * const message,
+  char * buffer);
+
+uint32_t messages_album_songs_req_msg_deserialize(
+  const char * const buffer, struct AlbumSongsReqMessage * message);
+
+
+uint32_t messages_album_songs_resp_serialize(
+  const struct AlbumSongsRespMessage * message,
+  char * buffer);
+
+
+uint32_t messages_album_songs_resp_deserialize(
+  const char * const buffer,
+  struct AlbumSongsRespMessage * message);
+
+
+uint32_t messages_album_songs_resp_get_length_bytes(
+  const struct AlbumSongsRespMessage * message);
 
 #endif // SIMPLE_MESSAGES_H_

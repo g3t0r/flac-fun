@@ -129,7 +129,7 @@ uint32_t messages_play_song_msg_deserialize(const char * const buffer,
 }
 
 
-uint32_t messages_album_list_msg_resp_serialize
+uint32_t messages_album_list_resp_msg_serialize
 (const struct AlbumListMessage * const message,
  char * buffer) {
 
@@ -155,10 +155,11 @@ uint32_t messages_album_list_msg_resp_serialize
   return written_bytes;
 }
 
-
-uint32_t messages_album_list_msg_resp_deserialize(const char * const buffer,
-                                                struct AlbumListMessage * message) {
-  uint32_t read_bytes = bytes_buffer_read_int(&message->size, buffer, sizeof(message->size));
+uint32_t messages_album_list_resp_msg_deserialize(const char * const buffer,
+                                                  struct AlbumListMessage * message) {
+  uint32_t read_bytes = bytes_buffer_read_int(&message->size,
+                                              buffer,
+                                              sizeof(message->size));
 
   message->album_list = malloc(message->size * sizeof *message->album_list);
   struct AlbumListEntry * entry = message->album_list;
@@ -183,7 +184,9 @@ uint32_t messages_album_list_msg_resp_deserialize(const char * const buffer,
   return read_bytes;
 }
 
-uint32_t messages_album_list_msg_get_length_bytes(const struct AlbumListMessage * const message) {
+uint32_t messages_album_list_resp_msg_get_length_bytes(
+  const struct AlbumListMessage * const message) {
+
   uint32_t bytes_total = sizeof(message->size);
   struct AlbumListEntry * entry = message->album_list;
   while(entry - message->album_list < message->size) {
@@ -194,4 +197,103 @@ uint32_t messages_album_list_msg_get_length_bytes(const struct AlbumListMessage 
     entry++;
   }
   return bytes_total;
+}
+
+uint32_t messages_album_songs_req_msg_serialize(
+  const struct AlbumSongsReqMessage * const message,
+  char * buffer) {
+
+  return bytes_buffer_write_int(buffer,
+                               &message->song_id,
+                               sizeof(message->song_id));
+}
+
+uint32_t messages_album_songs_req_msg_deserialize(
+  const char * const buffer, struct AlbumSongsReqMessage * message) {
+
+  return bytes_buffer_read_int(&message->song_id,
+                               buffer,
+                               sizeof(message->song_id));
+}
+
+uint32_t messages_album_songs_resp_serialize(
+  const struct AlbumSongsRespMessage * message,
+  char * buffer) {
+
+  int written_bytes = bytes_buffer_write_int(buffer, &message->size,
+                                             sizeof(message->size));
+
+  struct AlbumSongItem * item = message->items;
+
+  while(item - message->items < message->size) {
+
+    written_bytes += bytes_buffer_write_int(buffer + written_bytes,
+                                         &item->song_id,
+                                         sizeof(item->song_id));
+
+
+    written_bytes += bytes_buffer_write_int(buffer + written_bytes,
+                                         &item->song_name_size,
+                                         sizeof(item->song_name_size));
+
+    memcpy(buffer + written_bytes, item->song_name, item->song_name_size);
+
+    written_bytes += item->song_name_size;
+    item++;
+  }
+
+  return written_bytes;
+
+}
+
+uint32_t messages_album_songs_resp_deserialize(
+  const char * const buffer,
+  struct AlbumSongsRespMessage * message) {
+
+  int read_bytes = bytes_buffer_read_int(&message->size, buffer,
+                                         sizeof(message->size));
+
+  message->items = malloc(message->size * sizeof *message->items);
+
+  struct AlbumSongItem * item = (struct AlbumSongItem *) message->items;
+
+  while(item - message->items < message->size) {
+
+    read_bytes += bytes_buffer_read_int(&item->song_id,
+                                        buffer + read_bytes,
+                                        sizeof(item->song_id));
+
+
+    read_bytes += bytes_buffer_read_int(&item->song_name_size,
+                                        buffer + read_bytes,
+                                        sizeof(item->song_name_size));
+
+    item->song_name = malloc(item->song_name_size);
+
+    memcpy(item->song_name, buffer + read_bytes, item->song_name_size);
+
+    read_bytes += item->song_name_size;
+    item++;
+  }
+
+  return read_bytes;
+
+}
+
+uint32_t messages_album_songs_resp_get_length_bytes(
+  const struct AlbumSongsRespMessage * const message) {
+
+  int total_bytes = sizeof(message->size);
+  struct AlbumSongItem * item = message->items;
+  while(item - message->items < message->size) {
+
+    total_bytes += sizeof(item->song_id)
+      + sizeof(item->song_name_size)
+      + item->song_name_size;
+
+    item++;
+  }
+
+  return total_bytes;
+
 }

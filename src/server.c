@@ -377,7 +377,7 @@ static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) 
       }
 
       int response_size = sizeof(header)
-        + messages_album_list_msg_get_length_bytes(&msg_album_list);
+        + messages_album_list_resp_msg_get_length_bytes(&msg_album_list);
 
       char * response_buffer = malloc(response_size);
       header.seq = 0;
@@ -385,7 +385,7 @@ static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) 
       header.size = response_size;
 
       int written_bytes = messages_header_serialize(&header, response_buffer);
-      written_bytes += messages_album_list_msg_resp_serialize(
+      written_bytes += messages_album_list_resp_msg_serialize(
         &msg_album_list, response_buffer + written_bytes);
 
       print_debug("Free msg_album_list->items\n");
@@ -397,6 +397,21 @@ static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) 
                            response_buffer + sent_bytes,
                            written_bytes - sent_bytes, 0);
       }
+    }
+
+    if(header.type == MESSAGE_TYPE_ALBUM_SONGS_REQ || 1) {
+      struct AlbumSongsReqMessage album_songs_req_msg;
+
+      read_bytes = recv(args->client_socket,
+                        buffer,
+                        MSG_ALBUM_SONGS_REQ_SIZE,
+                        0);
+
+      messages_album_songs_req_msg_deserialize(
+        buffer, &album_songs_req_msg);
+
+
+      print_debug("Song_id: %d\n", album_songs_req_msg.song_id);
     }
 
 
