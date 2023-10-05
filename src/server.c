@@ -368,12 +368,12 @@ static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) 
         = malloc(lib_album_list->size * sizeof(*msg_album_list.album_list));
 
       for(int i = 0; i < lib_album_list->size; i++) {
-        struct LibraryAlbumEntry * lib_album_entry = lib_album_list->items + i;
-        struct AlbumListEntry * msg_album_entry = msg_album_list.album_list + 1;
+        const struct LibraryAlbumEntry * lib_album_entry = lib_album_list->items + i;
+        struct AlbumListEntry * msg_album_entry = msg_album_list.album_list + i;
 
         msg_album_entry->album_id = i;
         msg_album_entry->album_name_size = strlen(lib_album_entry->name) + 1;
-        msg_album_entry->album_name = lib_album_entry->name;
+        msg_album_entry->album_name = (char *) lib_album_entry->name;
       }
 
       int response_size = sizeof(header)
@@ -382,16 +382,14 @@ static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) 
       char * response_buffer = malloc(response_size);
       header.seq = 0;
       header.type = MESSAGE_TYPE_ALBUM_LIST_RESP;
+      header.size = response_size;
+
       int written_bytes = messages_header_serialize(&header, response_buffer);
+      written_bytes += messages_album_list_msg_resp_serialize(
+        &msg_album_list, response_buffer + written_bytes);
 
-      written_bytes += messages_album_list_msg_resp_serialize(&msg_album_list,
-                                                             response_buffer
-                                                             + written_bytes);
-
-      for(int i = 0; i < lib_album_list->size; i++) {
-        free(lib_album_list->items + i);
-        free(msg_album_list.album_list + i);
-      }
+      print_debug("Free msg_album_list->items\n");
+      free(msg_album_list.album_list);
 
       int sent_bytes = 0;
       while(sent_bytes != written_bytes) {

@@ -133,7 +133,9 @@ uint32_t messages_album_list_msg_resp_serialize
 (const struct AlbumListMessage * const message,
  char * buffer) {
 
-  uint32_t written_bytes = bytes_buffer_write_int(buffer, &message->size, sizeof(message->size));
+  uint32_t written_bytes
+    = bytes_buffer_write_int(buffer, &message->size, sizeof(message->size));
+
   for(int i = 0; i < message->size; i++) {
 
     written_bytes += bytes_buffer_write_int(buffer + written_bytes,
@@ -145,9 +147,10 @@ uint32_t messages_album_list_msg_resp_serialize
                                             sizeof(message->album_list[i]
                                                    .album_name_size));
 
-    written_bytes += bytes_buffer_write_int(buffer + written_bytes,
-                                            message->album_list[i].album_name,
-                                            message->album_list[i].album_name_size);
+    memcpy(buffer + written_bytes, message->album_list[i].album_name,
+           message->album_list[i].album_name_size);
+
+    written_bytes += message->album_list[i].album_name_size;
   }
   return written_bytes;
 }
@@ -187,6 +190,8 @@ uint32_t messages_album_list_msg_get_length_bytes(const struct AlbumListMessage 
     bytes_total += sizeof(entry->album_id)
       + sizeof(entry->album_name_size)
       + entry->album_name_size;
+
+    entry++;
   }
   return bytes_total;
 }
