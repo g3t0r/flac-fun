@@ -410,8 +410,55 @@ static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) 
       messages_album_songs_req_msg_deserialize(
         buffer, &album_songs_req_msg);
 
+      album_songs_req_msg.song_id = 1;
 
       print_debug("Song_id: %d\n", album_songs_req_msg.song_id);
+
+      struct LibrarySongs * lib_song_list = library_album_songs(
+        &args->server->library,
+        album_songs_req_msg.song_id);
+
+      struct AlbumSongsRespMessage album_song_resp_msg;
+      album_song_resp_msg.size = lib_song_list->size;
+      album_song_resp_msg.items
+        = malloc(album_song_resp_msg.size * sizeof *album_song_resp_msg.items);
+
+      for(int i = 0; i < album_song_resp_msg.size; i++) {
+        struct LibrarySongEntry * lib_song = lib_song_list->items + i;
+        struct AlbumSongItem * msg_song = album_song_resp_msg.items + i;
+
+        msg_song->song_id = lib_song_list->first_song_id + i;
+        msg_song->song_name = (char *) lib_song->name;
+        msg_song->song_name_size = strlen(lib_song->name) + 1;
+      }
+
+      int response_size = MSG_HEADER_SIZE
+        + messages_album_songs_resp_get_length_bytes(&album_song_resp_msg);
+
+      char * response_buffer = malloc(response_size);
+      header.seq = 0;
+      header.size = response_size;
+      header.type = MESSAGE_TYPE_ALBUM_SONGS_RESP;
+
+      int written_bytes = messages_header_serialize(
+        &header,
+        response_buffer);
+
+      assert(written_bytes == MSG_HEADER_SIZE);
+
+      written_bytes += messages_album_songs_resp_serialize(
+        &album_song_resp_msg,
+        response_buffer + written_bytes);
+
+      int sent_bytes = 0;
+
+      while(sent_bytes != response_size) {
+        print_debug("%d bytes left\n", response_size - sent_bytes);
+        sent_bytes += send(args->client_socket,
+                           response_buffer + sent_bytes,
+                           response_size - sent_bytes, 0);
+      }
+
     }
 
 

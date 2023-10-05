@@ -28,6 +28,7 @@ struct LibrarySongEntry {
 };
 
 struct LibrarySongs {
+  uint32_t first_song_id;
   size_t size;
   struct LibrarySongEntry * items;
 };

@@ -247,6 +247,7 @@ uint32_t messages_album_songs_resp_serialize(
 }
 
 uint32_t messages_album_songs_resp_deserialize(
+
   const char * const buffer,
   struct AlbumSongsRespMessage * message) {
 

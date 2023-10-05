@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MSG_HEADER_SIZE 5
+#define MSG_HEADER_SIZE 7
 #define MSG_FEED_ME_SIZE 2
 #define MSG_PLAY_SONG_SIZE 4
 #define MSG_ALBUM_SONGS_REQ_SIZE 4
@@ -18,6 +18,7 @@ enum MessageType { HEARTBEAT,
   MESSAGE_TYPE_STOP,
   MESSAGE_TYPE_OK,
   MESSAGE_TYPE_ALBUM_SONGS_REQ,
+  MESSAGE_TYPE_ALBUM_SONGS_RESP,
   MESSAGE_TYPE_ALBUM_LIST_REQ,
   MESSAGE_TYPE_ALBUM_LIST_RESP
 };
@@ -177,6 +178,6 @@ uint32_t messages_album_songs_resp_deserialize(
 
 
 uint32_t messages_album_songs_resp_get_length_bytes(
-  const struct AlbumSongsRespMessage * message);
+  const struct AlbumSongsRespMessage * const message);
 
 #endif // SIMPLE_MESSAGES_H_
