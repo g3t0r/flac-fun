@@ -148,5 +148,6 @@ int player_client_stop(struct PlayerClient * player_client) {
 
 
 void player_client_disconnect_from_player_daemon(struct PlayerClient * player_client) {
+  player_client->player_daemon.connected = 0;
   close(player_client->conn_info.socket);
 }
