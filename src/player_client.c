@@ -291,6 +291,6 @@ void player_client_disconnect_from_player_daemon(struct PlayerClient * player_cl
 }
 
 void player_client_disconnect_from_content_server(struct PlayerClient * player_client) {
-  player_client->player_daemon.connected = 0;
+  player_client->content_server.connected = 0;
   close(player_client->conn_info.socket);
 }

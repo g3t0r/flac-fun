@@ -45,10 +45,14 @@ int main(int argc, char** argv) {
 
   struct PlayerClient player_client;
 
-  player_client_connect_to_daemon(&player_client);
-  player_client_connect_to_content_server(&player_client);
-
   enum Command parsed_command = parse_command(*(argv+1));
+
+  if(parsed_command > 3) {
+    player_client_connect_to_content_server(&player_client);
+  } else {
+    player_client_connect_to_daemon(&player_client);
+  }
+
 
   switch(parsed_command) {                      \
 
@@ -123,5 +127,10 @@ int main(int argc, char** argv) {
 
   }
 
-  player_client_disconnect_from_player_daemon(&player_client);
-} 
+  if(parsed_command > 3) {
+    player_client_disconnect_from_content_server(&player_client);
+  } else {
+    player_client_disconnect_from_player_daemon(&player_client);
+  }
+
+}
