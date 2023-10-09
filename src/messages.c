@@ -204,16 +204,16 @@ uint32_t messages_album_songs_req_msg_serialize(
   char * buffer) {
 
   return bytes_buffer_write_int(buffer,
-                               &message->song_id,
-                               sizeof(message->song_id));
+                               &message->album_id,
+                               sizeof(message->album_id));
 }
 
 uint32_t messages_album_songs_req_msg_deserialize(
   const char * const buffer, struct AlbumSongsReqMessage * message) {
 
-  return bytes_buffer_read_int(&message->song_id,
+  return bytes_buffer_read_int(&message->album_id,
                                buffer,
-                               sizeof(message->song_id));
+                               sizeof(message->album_id));
 }
 
 uint32_t messages_album_songs_resp_serialize(

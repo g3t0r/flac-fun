@@ -73,7 +73,7 @@ struct AlbumSongsRespMessage {
 };
 
 struct AlbumSongsReqMessage {
-  uint32_t song_id;
+  uint32_t album_id;
 };
 
 /**

@@ -116,6 +116,7 @@ struct LibrarySongs * library_album_songs(struct Library * library, size_t album
   struct LibrarySongs * songs_in_album = malloc(sizeof *songs_in_album);
   songs_in_album->size = album->album_size;
   songs_in_album->items = library->song_list->items + album->first_song_id;
+  songs_in_album->first_song_id = album->first_song_id;
   return songs_in_album;
 }
 

@@ -33,7 +33,7 @@ enum Command parse_command(char * command) {
   }
 
   for(int i = 0; i < sizeof(commands_list) / sizeof(char *); i++) {
-    if(!strncmp(command, commands_list[i], command_size)) {
+    if(!strncmp(command, commands_list[i], strlen(commands_list[i]))) {
       return i;
     }
   }
@@ -46,6 +46,7 @@ int main(int argc, char** argv) {
   struct PlayerClient player_client;
 
   player_client_connect_to_daemon(&player_client);
+  player_client_connect_to_content_server(&player_client);
 
   enum Command parsed_command = parse_command(*(argv+1));
 
@@ -90,6 +91,30 @@ int main(int argc, char** argv) {
       player_client_stop(&player_client);
       break;
 
+    }
+
+    case CMD_LIST_ALBUMS: {
+      struct AlbumListMessage * album_list = player_client_list_albums(&player_client);
+      for(int i = 0; i < album_list->size; i++) {
+        struct AlbumListEntry * entry = album_list->album_list + i;
+        print_info("\t%d\t%s\n", entry->album_id, entry->album_name);
+      }
+      break;
+    }
+
+    case CMD_SHOW_ALBUM: {
+
+      if(argc < 3) {
+        print_error("Missing album id\n");
+        exit(1);
+      }
+      int album_id = atoi(*(argv+2));
+      struct AlbumSongsRespMessage * album_songs = player_client_show_album(&player_client, album_id);
+      for(int i = 0; i < album_songs->size; i++) {
+        struct AlbumSongItem * entry = album_songs->items + i;
+        print_info("\t%d\t%s\n", entry->song_id, entry->song_name);
+      }
+      break;
     }
 
     default: {

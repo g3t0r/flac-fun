@@ -346,6 +346,7 @@ static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) 
 
     if(client_poll_fd.revents & POLLERR) {
       print_error("POLLERR: %s\n", strerror(errno));
+      break;
     }
 
     if(client_poll_fd.revents & POLLHUP) {
@@ -358,7 +359,16 @@ static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) 
     char buffer[4096];
     struct MessageHeader header;
     read_bytes = recv(client_poll_fd.fd, buffer + read_bytes,
-                      sizeof(header) - read_bytes, 0);
+                      MSG_HEADER_SIZE - read_bytes, 0);
+
+    if(read_bytes == 0) {
+      break;
+    }
+
+    messages_header_deserialize(buffer, &header);
+
+    print_debug("Received header: type: %d, size: %d, seq: %d\n",
+                header.type, header.size, header.seq);
 
     if(header.type == MESSAGE_TYPE_ALBUM_LIST_REQ) {
       struct LibraryAlbums * lib_album_list = library_albums(&args->server->library);
@@ -399,30 +409,36 @@ static void server_tcp_handle_connection(struct HandleTcpClientConnArgs * args) 
       }
     }
 
-    if(header.type == MESSAGE_TYPE_ALBUM_SONGS_REQ || 1) {
+    if(header.type == MESSAGE_TYPE_ALBUM_SONGS_REQ) {
       struct AlbumSongsReqMessage album_songs_req_msg;
 
-      read_bytes = recv(args->client_socket,
-                        buffer,
-                        MSG_ALBUM_SONGS_REQ_SIZE,
+      read_bytes = 0;
+      while(read_bytes != MSG_ALBUM_SONGS_REQ_SIZE) {
+        int local_read_bytes = recv(args->client_socket,
+                        buffer + read_bytes,
+                        MSG_ALBUM_SONGS_REQ_SIZE - read_bytes,
                         0);
+
+        read_bytes += local_read_bytes;
+        print_debug("Bytes: %d/%d\n", read_bytes, MSG_ALBUM_SONGS_REQ_SIZE);
+
+      }
 
       messages_album_songs_req_msg_deserialize(
         buffer, &album_songs_req_msg);
 
-      album_songs_req_msg.song_id = 1;
-
-      print_debug("Song_id: %d\n", album_songs_req_msg.song_id);
+      print_debug("Song_id: %d\n", album_songs_req_msg.album_id);
 
       struct LibrarySongs * lib_song_list = library_album_songs(
         &args->server->library,
-        album_songs_req_msg.song_id);
+        album_songs_req_msg.album_id);
 
       struct AlbumSongsRespMessage album_song_resp_msg;
       album_song_resp_msg.size = lib_song_list->size;
       album_song_resp_msg.items
         = malloc(album_song_resp_msg.size * sizeof *album_song_resp_msg.items);
 
+      size_t fist_song_id = lib_song_list->first_song_id;
       for(int i = 0; i < album_song_resp_msg.size; i++) {
         struct LibrarySongEntry * lib_song = lib_song_list->items + i;
         struct AlbumSongItem * msg_song = album_song_resp_msg.items + i;
