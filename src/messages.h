@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #define MSG_HEADER_SIZE 7
-#define MSG_FEED_ME_SIZE 2
+#define MSG_FEED_ME_SIZE 6
 #define MSG_PLAY_SONG_SIZE 4
 #define MSG_ALBUM_SONGS_REQ_SIZE 4
 

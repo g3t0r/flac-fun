@@ -41,6 +41,7 @@ struct PlayerDaemon {
     int socket;
     struct sockaddr_in sock_addr;
   } content_server;
+  uint32_t song_id;
 };
 
 void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_daemon);
@@ -115,8 +116,8 @@ int main(int argc, char** argv) {
 
 
 void player_daemon_handle_control_message(
-    struct PlayerDaemon * player_daemon,
-    int tcp_socket) {
+  struct PlayerDaemon * player_daemon,
+  int tcp_socket) {
 
   print_debug("Received message on TCP, more info soon\n");
   int read_bytes = 0;
@@ -137,12 +138,18 @@ void player_daemon_handle_control_message(
   struct MessageHeader header;
 
   messages_header_deserialize(tcp_data_buffer, &header);
-  free(tcp_data_buffer);
 
   switch((enum MessageType) header.type) {
     case MESSAGE_TYPE_PLAY_SONG: {
-      print_debug("Play song\n");
-      // TODO sending message to content server, to pass song id
+      tcp_data_buffer = realloc(tcp_data_buffer, MSG_PLAY_SONG_SIZE);
+      recv(accepted_socket, tcp_data_buffer, MSG_PLAY_SONG_SIZE, 0);
+      struct PlaySongMessage play_song_msg;
+      messages_play_song_msg_deserialize(tcp_data_buffer,
+                                         &play_song_msg);
+
+      print_debug("Play song: %d\n", play_song_msg.song_id);
+      player_daemon->song_id = play_song_msg.song_id;
+
       pthread_t data_request_loop_tid;
       pthread_create(&data_request_loop_tid, NULL,
                      (void * (*)(void *))player_daemon_request_data_loop_thread_fn,
@@ -172,6 +179,7 @@ void player_daemon_handle_control_message(
       print_error("Not supported message type: %d\n", header.type);
       break;
   }
+
 
 }
 
@@ -206,26 +214,29 @@ void player_daemon_handle_data_message(
 
 void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_daemon) {
 
-  struct FeedMeMessage feed_me_message = { FFUN_REQUESTED_DATA_SIZE };
-  struct MessageHeader message_header = {
-    FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE,
-    sizeof(message_header) + sizeof(feed_me_message),
-    FEED_ME
-  };
+  struct FeedMeMessage feed_me_message;
+  feed_me_message.data_size = FFUN_REQUESTED_DATA_SIZE;
+  feed_me_message.song_id = player_daemon->song_id;
+
+
+  struct MessageHeader message_header;
+  message_header.seq = FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE;
+  message_header.size = MSG_HEADER_SIZE + MSG_FEED_ME_SIZE;
+  message_header.type = FEED_ME;
 
   char udp_data_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
   size_t udp_data_size =  messages_header_serialize(&message_header, udp_data_buffer);
   udp_data_size += messages_feed_me_msg_serialize(&feed_me_message,
-      udp_data_buffer + udp_data_size);
+                                                  udp_data_buffer + udp_data_size);
 
   while(player_daemon->player_status == PLAYER_DAEMON_AUDIO_STATUS_PLAYING) {
     
     sendto(player_daemon->content_server.socket,
-        udp_data_buffer,
-        udp_data_size,
-        0,
-        (struct sockaddr *) &player_daemon->content_server.sock_addr,
-        sizeof(player_daemon->content_server.sock_addr));
+           udp_data_buffer,
+           udp_data_size,
+           0,
+           (struct sockaddr *) &player_daemon->content_server.sock_addr,
+           sizeof(player_daemon->content_server.sock_addr));
 
     struct timespec time_spec;
     clock_gettime(CLOCK_REALTIME, &time_spec);
@@ -239,14 +250,14 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
     print_debug("Time spec: %lus %luns\n", time_spec.tv_sec, time_spec.tv_nsec);
 
     if(-1 == sem_timedwait(
-          &player_daemon->message_series_data_merge_mutex,
-          &time_spec)) {
+         &player_daemon->message_series_data_merge_mutex,
+         &time_spec)) {
       print_error("timedwait error: (%d), %s\n", errno, strerror(errno));
     }
 
     //sem_wait(&player_daemon->message_series_data_merge_mutex);
     char message_series_merge_buffer[FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE
-      * FFUN_UDP_DGRAM_MAX_SIZE];
+                                     * FFUN_UDP_DGRAM_MAX_SIZE];
 
     int merged_data_size = 0;
     assert(player_daemon->message_series_element_counter != 0);
@@ -255,8 +266,8 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
         print_debug("Detected 0 size at index: %d\n", i);
       }
       memcpy(message_series_merge_buffer + merged_data_size,
-          (player_daemon->message_buffer + i)->data,
-          (player_daemon->message_buffer + i)->data_size);
+             (player_daemon->message_buffer + i)->data,
+             (player_daemon->message_buffer + i)->data_size);
 
       merged_data_size += (player_daemon->message_buffer + i)->data_size;
     }
@@ -268,9 +279,9 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
     print_debug("Merged data size: %d\n", merged_data_size);
     assert(merged_data_size != 0);
     playback_feed_data(
-        player_daemon->playback,
-        message_series_merge_buffer,
-        merged_data_size);
+      player_daemon->playback,
+      message_series_merge_buffer,
+      merged_data_size);
   }
 
   return NULL;

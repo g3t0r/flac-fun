@@ -104,6 +104,7 @@ int player_client_connect_to_content_server(struct PlayerClient * player_client)
 }
 
 int player_client_play(struct PlayerClient * player_client, int song_id) {
+  print_debug("song_id: %d\n", song_id);
 
   struct MessageHeader header = {
   0,
@@ -113,6 +114,7 @@ int player_client_play(struct PlayerClient * player_client, int song_id) {
   };
 
   struct PlaySongMessage message;
+  message.song_id = song_id;
 
   char udp_data[FFUN_UDP_DGRAM_MAX_SIZE];
 

@@ -106,15 +106,27 @@ uint32_t messages_data_msg_get_length_bytes(const struct DataMessage *const mess
 }
 
 uint16_t messages_feed_me_msg_serialize(const struct FeedMeMessage *message,
-                                char *buffer) {
-  return bytes_buffer_write_int(buffer, &message->data_size,
-                              sizeof(message->data_size));
+                                        char *buffer) {
+
+  size_t written_bytes = bytes_buffer_write_int(buffer, &message->data_size,
+                                                sizeof(message->data_size));
+
+  written_bytes += bytes_buffer_write_int(buffer + written_bytes, &message->song_id,
+                                          sizeof(message->song_id));
+
+  return written_bytes;
 }
 
 uint16_t messages_feed_me_msg_deserialize(const char *const buffer,
-                                  struct FeedMeMessage *message) {
-  return bytes_buffer_read_int(&message->data_size, buffer,
-                               sizeof(message->data_size));
+                                          struct FeedMeMessage *message) {
+
+  size_t read_bytes = bytes_buffer_read_int(&message->data_size, buffer,
+                                            sizeof(message->data_size));
+
+  read_bytes += bytes_buffer_read_int(&message->song_id, buffer + read_bytes,
+                                      sizeof(message->song_id));
+
+  return read_bytes;
 }
 
 uint32_t messages_play_song_msg_serialize(

@@ -272,7 +272,7 @@ static void server_udp_socket_listener_fn(struct Server * server) {
      * */
 
     handle_feed_me_msg_args->message.segments_n = message_header->seq;
-    handle_feed_me_msg_args->message.song_id = 0;
+    //handle_feed_me_msg_args->message.song_id = 0;
 
     pthread_t tid;
     pthread_create(&tid, NULL, (void *(*)(void *)) handle_feed_me_msg_fn,
