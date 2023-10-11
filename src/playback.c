@@ -44,7 +44,6 @@ static void flac_stream_decoder_error_cb(const FLAC__StreamDecoder *decoder,
 
 int playback_init(struct Playback *playback) {
 
-  // TODO: initialize semaphores
   ao_initialize();
   sem_init(&playback->semaphores.flac_data_mutex, 0, 1);
   sem_init(&playback->semaphores.flac_data_push, 0, FFUN_FLAC_DATA_BUFF_CAPACITY);
@@ -148,8 +147,8 @@ static void *playback_data_stream_thread_fn(struct Playback *playback) {
 }
 
 static FLAC__StreamDecoderWriteStatus flac_stream_decoder_write_cb(
-    const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame,
-    const FLAC__int32 *const *buffer, void *client_data) {
+  const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame,
+  const FLAC__int32 *const *buffer, void *client_data) {
 
 
   struct Playback *playback = (struct Playback *)client_data;
@@ -172,18 +171,14 @@ static FLAC__StreamDecoderWriteStatus flac_stream_decoder_write_cb(
     for (int channel = 0; channel < number_of_channels; channel++) {
 
       int channel_offset =
-          i * bytes_per_sample * number_of_channels + bytes_per_sample * channel;
+        i * bytes_per_sample * number_of_channels + bytes_per_sample * channel;
       assert(buffer[channel] != NULL);
 
-      /*
-       * TODO
-       * 3 times because 24 bits per sample (3*8)
-       * Should make it more dynamic but now
-       * it's not good time to do it
-       */
-      output_buffer[channel_offset] = (int8_t)(buffer[channel][i] >> 16) & byte_mask;
-      output_buffer[channel_offset + 1] = (int8_t)(buffer[channel][i] >> 8) & byte_mask;
-      output_buffer[channel_offset + 2] = (int8_t)buffer[channel][i] & byte_mask;
+      for(int sample_byte = 0; sample_byte < bytes_per_sample; sample_byte++) {
+        int shift = (bytes_per_sample - 1 - sample_byte) * 8;
+        output_buffer[channel_offset + sample_byte] = (int8_t)(buffer[channel][i] >> shift) & byte_mask;
+      }
+
     }
   }
 
