@@ -41,6 +41,12 @@ struct CircleBufferEntry *circle_buffer_read(struct CircleBuffer *buffer) {
   return output;
 }
 
+void circle_buffer_reset(struct CircleBuffer *buffer) {
+  buffer->head = 0;
+  buffer->tail = 0;
+  buffer->current_size = 0;
+}
+
 struct CircleBufferEntry *circle_buffer_write(struct CircleBuffer *buffer,
                                             const void *data, size_t size) {
   assert(buffer != NULL);

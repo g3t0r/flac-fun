@@ -18,6 +18,8 @@
 #include "time.h"
 #include "unistd.h"
 
+#define sem_wait(sem) printf("sem_wait: %s:%d\n", __FILE__, __LINE__); sem_wait(sem);
+
 enum PlayerDaemonAudioStatus {
   PLAYER_DAEMON_AUDIO_STATUS_STOPPED = 0,
   PLAYER_DAEMON_AUDIO_STATUS_PLAYING
@@ -42,6 +44,8 @@ struct PlayerDaemon {
     struct sockaddr_in sock_addr;
   } content_server;
   uint32_t song_id;
+  sem_t data_msg_socket_mutex;
+  pthread_t data_request_loop_tid;
 };
 
 void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_daemon);
@@ -56,6 +60,7 @@ int main(int argc, char** argv) {
   player_daemon.message_series_element_counter = 0;
   sem_init(&player_daemon.message_series_element_counter_mutex, 0, 1);
   sem_init(&player_daemon.message_series_data_merge_mutex, 0, 0);
+  sem_init(&player_daemon.data_msg_socket_mutex, 0, 1);
 
 
   // tcp socket
@@ -149,9 +154,9 @@ void player_daemon_handle_control_message(
 
       print_debug("Play song: %d\n", play_song_msg.song_id);
       player_daemon->song_id = play_song_msg.song_id;
+      player_daemon->player_status = PLAYER_DAEMON_AUDIO_STATUS_PLAYING;
 
-      pthread_t data_request_loop_tid;
-      pthread_create(&data_request_loop_tid, NULL,
+      pthread_create(&player_daemon->data_request_loop_tid, NULL,
                      (void * (*)(void *))player_daemon_request_data_loop_thread_fn,
                      player_daemon);
 
@@ -172,7 +177,43 @@ void player_daemon_handle_control_message(
     }
     case MESSAGE_TYPE_STOP: {
       print_debug("Stop command\n");
+
+      player_daemon->player_status = PLAYER_DAEMON_AUDIO_STATUS_STOPPED;
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+      sem_post(&player_daemon->message_series_element_counter_mutex);
+
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+      sem_post(&player_daemon->message_series_data_merge_mutex);
+
+      print_debug("Before joining data thread\n");
+      pthread_join(player_daemon->data_request_loop_tid, NULL);
       playback_stop(player_daemon->playback);
+      playback_reset(player_daemon->playback);
+      print_debug("Joined data thread\n");
+
+      player_daemon->message_series_element_counter = 0;
+      sem_destroy(&player_daemon->message_series_element_counter_mutex);
+      sem_destroy(&player_daemon->message_series_data_merge_mutex);
+      sem_init(&player_daemon->message_series_data_merge_mutex, 0, 0);
+
       break;
     }
     default:
@@ -184,8 +225,8 @@ void player_daemon_handle_control_message(
 }
 
 void player_daemon_handle_data_message(
-    struct PlayerDaemon * player_daemon,
-    int udp_socket) {
+  struct PlayerDaemon * player_daemon,
+  int udp_socket) {
 
   char udp_data_buffer[FFUN_UDP_DGRAM_MAX_SIZE];
   ssize_t read_bytes = read(udp_socket, udp_data_buffer, FFUN_UDP_DGRAM_MAX_SIZE);
@@ -200,10 +241,33 @@ void player_daemon_handle_data_message(
     print_error("Not supported yet\n");
   }
 
-  messages_data_msg_deserialize(udp_data_buffer + header_size,
-      player_daemon->message_buffer + player_daemon->message_series_element_counter);
+  print_debug("Counter: %d\n", player_daemon->message_series_element_counter);
+  print_debug("Header seq: %d\n", header.seq);
 
+  struct DataMessage data_message_tmp;
+
+  messages_data_msg_deserialize(udp_data_buffer + header_size,
+                                &data_message_tmp);
+
+  if(data_message_tmp.song_id != player_daemon->song_id) {
+    print_debug("Received old data message, ignoring\n");
+    return;
+  }
+
+  print_debug("DataMessage.song_id: %d\n", data_message_tmp.song_id);
+
+  player_daemon->message_buffer[player_daemon->message_series_element_counter] = data_message_tmp;
+
+  print_debug("Before problematic wait\n");
+  if(player_daemon->player_status != PLAYER_DAEMON_AUDIO_STATUS_PLAYING) {
+    print_debug("MAYBE WILL RETURN???? \n");
+    return;
+  }
   sem_wait(&player_daemon->message_series_element_counter_mutex);
+  if(player_daemon->player_status != PLAYER_DAEMON_AUDIO_STATUS_PLAYING) {
+    return;
+  }
+  print_debug("Successful wait\n");
   player_daemon->message_series_element_counter++;
 
   if(player_daemon->message_series_element_counter == FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE) {
@@ -230,7 +294,7 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
                                                   udp_data_buffer + udp_data_size);
 
   while(player_daemon->player_status == PLAYER_DAEMON_AUDIO_STATUS_PLAYING) {
-    
+
     sendto(player_daemon->content_server.socket,
            udp_data_buffer,
            udp_data_size,
@@ -249,13 +313,20 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
     time_spec.tv_nsec %= 1000000000;
     print_debug("Time spec: %lus %luns\n", time_spec.tv_sec, time_spec.tv_nsec);
 
+
+
     if(-1 == sem_timedwait(
          &player_daemon->message_series_data_merge_mutex,
          &time_spec)) {
       print_error("timedwait error: (%d), %s\n", errno, strerror(errno));
     }
 
+
+
     //sem_wait(&player_daemon->message_series_data_merge_mutex);
+    if(player_daemon->player_status != PLAYER_DAEMON_AUDIO_STATUS_PLAYING) {
+      return NULL;
+    }
     char message_series_merge_buffer[FFUN_PLAYER_DAEMON_DATA_MESSAGE_SERIES_SIZE
                                      * FFUN_UDP_DGRAM_MAX_SIZE];
 
@@ -272,16 +343,24 @@ void * player_daemon_request_data_loop_thread_fn(struct PlayerDaemon * player_da
       merged_data_size += (player_daemon->message_buffer + i)->data_size;
     }
 
+    print_debug("B E F O R E: Waiting in thread\n");
     sem_wait(&player_daemon->message_series_element_counter_mutex);
+    print_debug("A F T E R: Waiting in thread\n");
+    if(player_daemon->player_status != PLAYER_DAEMON_AUDIO_STATUS_PLAYING) {
+      print_debug("R E T U R N\n");
+      return NULL;
+    }
     player_daemon->message_series_element_counter = 0;
     sem_post(&player_daemon->message_series_element_counter_mutex);
 
     print_debug("Merged data size: %d\n", merged_data_size);
     assert(merged_data_size != 0);
+    print_debug("Waiting to feed\n");
     playback_feed_data(
       player_daemon->playback,
       message_series_merge_buffer,
       merged_data_size);
+    print_debug("Feeding finished\n");
   }
 
   return NULL;

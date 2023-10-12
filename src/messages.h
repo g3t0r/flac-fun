@@ -31,6 +31,7 @@ struct MessageHeader {
 
 
 struct DataMessage {
+  uint32_t song_id;
   uint32_t data_size;
   char *data;
 };

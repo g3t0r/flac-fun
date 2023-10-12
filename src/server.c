@@ -161,6 +161,7 @@ static void handle_feed_me_msg_fn(struct HandleFeedMeMsgFuncArgs * args) {
   int sent_bytes = 0;
   for (int i = 0; i < feed_me_message->segments_n; i++) {
 
+    data_message.song_id = server->current_song_id;
     data_message.data = malloc(sizeof(char) * feed_me_message->data_size);
     data_message.data_size =
       fread(data_message.data, sizeof(char), feed_me_message->data_size,

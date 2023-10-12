@@ -67,9 +67,39 @@ int playback_init(struct Playback *playback) {
   return 0;
 }
 
+int playback_reset(struct Playback *playback) {
+
+  sem_destroy(&playback->semaphores.flac_data_mutex);
+  sem_destroy(&playback->semaphores.flac_data_push);
+  sem_destroy(&playback->semaphores.flac_data_pull);
+  sem_destroy(&playback->semaphores.raw_data_mutex);
+  sem_destroy(&playback->semaphores.raw_data_push);
+  sem_destroy(&playback->semaphores.raw_data_pull);
+  sem_destroy(&playback->semaphores.pause);
+  sem_destroy(&playback->semaphores.pause_mutex);
+
+  sem_init(&playback->semaphores.flac_data_mutex, 0, 1);
+  sem_init(&playback->semaphores.flac_data_push, 0, FFUN_FLAC_DATA_BUFF_CAPACITY);
+  sem_init(&playback->semaphores.flac_data_pull, 0, 0);
+  sem_init(&playback->semaphores.raw_data_mutex, 0, 1);
+  sem_init(&playback->semaphores.raw_data_push, 0, FFUN_FLAC_DATA_BUFF_CAPACITY);
+  sem_init(&playback->semaphores.raw_data_pull, 0, 0);
+  sem_init(&playback->semaphores.pause, 0, 1);
+  sem_init(&playback->semaphores.pause_mutex, 0, 1);
+  playback->playing = 0;
+
+  circle_buffer_reset(playback->flac_data_buffer);
+  circle_buffer_reset(playback->raw_data_buffer);
+
+  FLAC__stream_decoder_reset(playback->decoder);
+
+  return 0;
+}
+
 int playback_start(struct Playback *playback) {
 
   playback->playing = 1;
+  playback->stop = 0;
   pthread_create(&playback->threads.audio, NULL, (void *(*)(void *))playback_audio_thread_fn,
                  playback);
 

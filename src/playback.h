@@ -42,6 +42,7 @@ struct Playback {
 };
 
 int playback_init(struct Playback *playback);
+int playback_reset(struct Playback *playback);
 int playback_start(struct Playback *playback);
 void playback_feed_data(struct Playback * playback, char * data, size_t data_size);
 void playback_pause(struct Playback * playback);

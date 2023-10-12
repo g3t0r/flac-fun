@@ -66,7 +66,11 @@ uint32_t messages_header_deserialize(const char *const buffer,
  */
 uint32_t messages_data_msg_serialize(const struct DataMessage *const message,
                               char *buffer) {
-  int written_bytes = bytes_buffer_write_int(buffer, &message->data_size,
+
+  int written_bytes = bytes_buffer_write_int(buffer, &message->song_id,
+                                          sizeof(message->song_id));
+
+  written_bytes += bytes_buffer_write_int(buffer + written_bytes, &message->data_size,
                                           sizeof(message->data_size));
 
   memcpy(buffer + written_bytes, message->data, message->data_size);
@@ -87,7 +91,10 @@ uint32_t messages_data_msg_serialize(const struct DataMessage *const message,
 uint32_t messages_data_msg_deserialize(const char *const buffer,
                                 struct DataMessage *message) {
 
-  int read_bytes = bytes_buffer_read_int(&message->data_size, buffer,
+  int read_bytes = bytes_buffer_read_int(&message->song_id, buffer,
+                                        sizeof(message->song_id));
+
+  read_bytes += bytes_buffer_read_int(&message->data_size, buffer + read_bytes,
                                         sizeof(message->data_size));
 
   message->data = malloc(sizeof(char) * message->data_size);
@@ -102,7 +109,9 @@ uint32_t messages_data_msg_deserialize(const char *const buffer,
  *          including memory pointed by DataMessage.data
  */
 uint32_t messages_data_msg_get_length_bytes(const struct DataMessage *const message) {
-  return sizeof(message->data_size) + message->data_size * sizeof(char);
+  return sizeof(message->song_id)
+    + sizeof(message->data_size)
+    + message->data_size * sizeof(char);
 }
 
 uint16_t messages_feed_me_msg_serialize(const struct FeedMeMessage *message,
